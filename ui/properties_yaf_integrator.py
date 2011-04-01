@@ -13,7 +13,8 @@ Scene.intg_light_method =   EnumProperty(
         ("Pathtracing", "Pathtracing", ""),
         ("Debug", "Debug", ""),
         ("Bidirectional", "Bidirectional", ""),
-        ("SPPM", "SPPM", "")
+        ("SPPM", "SPPM", ""),
+        ("PBGI", "PBGI", "")
     ),
     default="Direct Lighting",
     name = "Lighting Method")
@@ -121,7 +122,12 @@ Scene.intg_pass_num = IntProperty(min = 1, default = 1000);
 Scene.intg_times = FloatProperty(min = 0.0, default = 1.0);
 Scene.intg_photon_radius = FloatProperty(min = 0.0, default = 1.0);
 
-
+Scene.intg_pbgi_samples = IntProperty(min = 1, default = 10);
+Scene.intg_pbgi_debug = BoolProperty(default = False);
+Scene.intg_pbgi_indirect = BoolProperty(default = False);
+Scene.intg_pbgi_maxSolidAngle = FloatProperty(min = 0.0, max = 10.0, default = 0.5, precision = 3);
+Scene.intg_pbgi_debugTreeDepth = IntProperty(min = 0, default = 2);
+Scene.intg_pbgi_debugPointsToFile = BoolProperty(default = False);
 
 
 class YAF_PT_render(bpy.types.Panel):
@@ -242,4 +248,13 @@ class YAF_PT_render(bpy.types.Panel):
             col.prop(context.scene, "intg_diffuse_radius", text= "Search radius")
             col.prop(context.scene, "intg_search", text= "Search count")
             col.prop(context.scene, "intg_pm_ire", text= "PM IRE")
+
+        elif context.scene.intg_light_method == 'PBGI':
+            col = layout.column()
+            col.prop(context.scene, "intg_pbgi_samples", text= "Samples")
+            col.prop(context.scene, "intg_pbgi_indirect", text= "Indirect Only")
+            col.prop(context.scene, "intg_pbgi_debug", text= "Debug")
+            col.prop(context.scene, "intg_pbgi_maxSolidAngle", text= "Solid Angle")
+            col.prop(context.scene, "intg_pbgi_debugTreeDepth", text= "Debug Tree Depth")
+            col.prop(context.scene, "intg_pbgi_debugPointsToFile", text= "Debug Output to File")
 
