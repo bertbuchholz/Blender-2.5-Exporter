@@ -119,6 +119,10 @@ class yafIntegrator:
             yi.paramsSetFloat("maxSolidAngle", scene.intg_pbgi_maxSolidAngle)
             yi.paramsSetInt("debugTreeDepth", scene.intg_pbgi_debugTreeDepth)
             yi.paramsSetBool("debugOutputPointsToFile", scene.intg_pbgi_debugPointsToFile)
+            yi.paramsSetString("debug_type", scene.intg_pbgi_debug_type)
+            yi.paramsSetBool("render_single_pixel", scene.intg_pbgi_render_single_pixel)
+            yi.paramsSetInt("pixel_x", scene.intg_pbgi_pixel_x)
+            yi.paramsSetInt("pixel_y", scene.intg_pbgi_pixel_y)
 
 
         yi.createIntegrator("default")

@@ -128,6 +128,18 @@ Scene.intg_pbgi_indirect = BoolProperty(default = False);
 Scene.intg_pbgi_maxSolidAngle = FloatProperty(min = 0.0, max = 10.0, default = 0.5, precision = 3);
 Scene.intg_pbgi_debugTreeDepth = IntProperty(min = 0, default = 2);
 Scene.intg_pbgi_debugPointsToFile = BoolProperty(default = False);
+Scene.intg_pbgi_debug_type = EnumProperty(
+    items = (
+        ("NoTree", "No Tree", ""),
+        ("Tree", "Tree", ""),
+        ("Tree_sh", "Tree SH", ""),
+        ("Tree_sh_leafs", "Tree SH leafs", "")
+        ),
+    default = "Tree_sh",
+    name = "Debug Tree Type")
+Scene.intg_pbgi_render_single_pixel = BoolProperty(default = False);
+Scene.intg_pbgi_pixel_x = IntProperty(min = 0, max = 1000, default = 0);
+Scene.intg_pbgi_pixel_y = IntProperty(min = 0, max = 1000, default = 0);
 
 
 class YAF_PT_render(bpy.types.Panel):
@@ -257,4 +269,8 @@ class YAF_PT_render(bpy.types.Panel):
             col.prop(context.scene, "intg_pbgi_maxSolidAngle", text= "Solid Angle")
             col.prop(context.scene, "intg_pbgi_debugTreeDepth", text= "Debug Tree Depth")
             col.prop(context.scene, "intg_pbgi_debugPointsToFile", text= "Debug Output to File")
+            col.prop(context.scene, "intg_pbgi_debug_type", text= "Debug Type")
+            col.prop(context.scene, "intg_pbgi_render_single_pixel", text= "Render Single Pixel")
+            col.prop(context.scene, "intg_pbgi_pixel_x", text= "X")
+            col.prop(context.scene, "intg_pbgi_pixel_y", text= "Y")
 
