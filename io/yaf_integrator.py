@@ -123,6 +123,7 @@ class yafIntegrator:
             yi.paramsSetBool("render_single_pixel", scene.intg_pbgi_render_single_pixel)
             yi.paramsSetInt("pixel_x", scene.intg_pbgi_pixel_x)
             yi.paramsSetInt("pixel_y", scene.intg_pbgi_pixel_y)
+            yi.paramsSetBool("do_load_gi_points", scene.intg_pbgi_do_load_gi_points)
 
 
         yi.createIntegrator("default")

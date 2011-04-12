@@ -140,6 +140,7 @@ Scene.intg_pbgi_debug_type = EnumProperty(
 Scene.intg_pbgi_render_single_pixel = BoolProperty(default = False);
 Scene.intg_pbgi_pixel_x = IntProperty(min = 0, max = 1000, default = 0);
 Scene.intg_pbgi_pixel_y = IntProperty(min = 0, max = 1000, default = 0);
+Scene.intg_pbgi_do_load_gi_points = BoolProperty(default = False);
 
 
 class YAF_PT_render(bpy.types.Panel):
@@ -273,4 +274,5 @@ class YAF_PT_render(bpy.types.Panel):
             col.prop(context.scene, "intg_pbgi_render_single_pixel", text= "Render Single Pixel")
             col.prop(context.scene, "intg_pbgi_pixel_x", text= "X")
             col.prop(context.scene, "intg_pbgi_pixel_y", text= "Y")
+            col.prop(context.scene, "intg_pbgi_do_load_gi_points", text= "Load Points from File")
 
