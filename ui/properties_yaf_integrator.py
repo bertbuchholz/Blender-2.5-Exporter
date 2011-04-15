@@ -133,6 +133,7 @@ Scene.intg_pbgi_debug_type = EnumProperty(
         ("NoTree", "No Tree", ""),
         ("Tree", "Tree", ""),
         ("Tree_sh", "Tree SH", ""),
+        ("Tree_sh_fb", "Tree SH FB", ""),
         ("Tree_sh_leafs", "Tree SH leafs", "")
         ),
     default = "Tree_sh",
