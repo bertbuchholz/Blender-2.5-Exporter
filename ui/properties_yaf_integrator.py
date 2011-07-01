@@ -125,7 +125,7 @@ Scene.intg_photon_radius = FloatProperty(min = 0.0, default = 1.0);
 Scene.intg_pbgi_samples = IntProperty(min = 1, default = 10);
 Scene.intg_pbgi_debug = BoolProperty(default = False);
 Scene.intg_pbgi_indirect = BoolProperty(default = False);
-Scene.intg_pbgi_maxSolidAngle = FloatProperty(min = 0.0, max = 10.0, default = 0.5, precision = 3);
+Scene.intg_pbgi_maxSolidAngle = FloatProperty(min = 0.0, max = 50.0, default = 0.5, precision = 3);
 Scene.intg_pbgi_debugTreeDepth = IntProperty(min = 0, default = 2);
 Scene.intg_pbgi_debugPointsToFile = BoolProperty(default = False);
 Scene.intg_pbgi_debug_type = EnumProperty(
