@@ -1,10 +1,11 @@
 import bpy
 import sys
 import os
-# import all props
+from yafaray.ot import yafaray_presets
+#import types and props ---->
 from bpy.props import *
-
 Scene = bpy.types.Scene
+
 
 # Default Gamma values for Windows Platform = 2.2 other Platforms (Linux/MacOS) = 1.8
 if sys.platform == 'win32':
@@ -78,19 +79,20 @@ Scene.gs_z_channel =    BoolProperty(attr = "gs_z_channel",
                         description = "Render depth map (Z-Buffer)",
                         default = False)
 Scene.gs_type_render =  EnumProperty(
-                        description = "Render to view Blender or to File, (load at the end)",
+                        description = "Choose the Render Method",
                         items = (
-                            ("file", "File, load at the end", ""),
-                            ("into_blender", "Into Blender", "")),
+                            ("file", "Image File", "Render the Scene and write it to an Image File when finished"),
+                            ("into_blender", "Into Blender", "Render the Scene into Blenders Renderbuffer"),
+                            ("xml", "XML File", "Export the Scene to a XML File")),
                         default = "into_blender",
-                        name = "Render Type")
+                        name = "Output Method")
 
 
 class YAFARAY_MT_presets_render(bpy.types.Menu):
     bl_label = "Yafaray Render Presets"
-    preset_subdir = os.path.join("..", "addons", "yafaray", "presets", "render")
+    preset_subdir = "render"
     preset_operator = "script.execute_preset"
-    draw = bpy.types.Menu.draw_preset
+    draw = yafaray_presets.Yafaray_Menu.draw_preset
 
 
 class YAF_PT_general_settings(bpy.types.Panel):
@@ -145,7 +147,7 @@ class YAF_PT_general_settings(bpy.types.Panel):
 
         row = layout.row()
         col = row.column()
-        col.prop(rd, "use_color_management", text = "Use Linear Workflow")
+        col.prop(rd, "use_color_management", text = "Color Management BI")
         col.prop(sc, "gs_clay_render", text = "Clay Render")
         col.prop(sc, "gs_transp_shad", text = "Transparent Shadow")
         col.prop(sc, "gs_auto_save", text = "Auto Save")

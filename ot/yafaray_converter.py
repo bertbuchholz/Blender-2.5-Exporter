@@ -41,7 +41,7 @@ def convertObject(obj):
 
     for p in props:
         value = props[p]
-        # print(p, props[p])
+
 
         if p in variableDict:
             p = variableDict[p]
@@ -77,9 +77,7 @@ def convertCameras(cameraObjects):
 
 def convertCamera(cameraObj):
     problemList = []
-
     camera = cameraObj.data
-
     props = cameraObj.get("YafRay", None)
     if not props:
         problemList.append("No properties on camera" + camera.name)
@@ -98,12 +96,11 @@ def convertCamera(cameraObj):
     cameraTypeDict["orthographic"] = "orthographic"
 
     camera.camera_type = cameraTypeDict[camera_type]
-    print("camera", camera.name, camera.camera_type)
 
     for p in props:
 
         value = props[p]
-        # print(p, value)
+
         if p == "dof_object_focus" and value == 1:
             camera.dof_object = bpy.data.objects[props["dof_object"]]
 
@@ -173,7 +170,6 @@ def convertLight(lightObj):
             continue
 
         value = props[p]
-        # print(p, value)
 
         if p in variableDict:
             p = variableDict[p]
@@ -228,45 +224,51 @@ def convertMaterial(mat):
     for item in [m for m in bpy.data.materials if not m.name == mat.name]:
         materialList.append((item.name, item.name, ""))
 
-    Material = bpy.types.Material
-    Material.material1 = EnumProperty(items = materialList, name = "Material One")
-    Material.material2 = EnumProperty(items = materialList, name = "Material Two")
-
-    # print("type", props["type"])
+    # no need to convert blend material anymore...
+    # Material = bpy.types.Material
+    # Material.material1 = EnumProperty(items = materialList, name = "Material One")
+    # Material.material2 = EnumProperty(items = materialList, name = "Material Two")
 
     variableDict = dict()
 
     if mat.mat_type in ["glossy", "coated_glossy"]:
         variableDict["color"] = "glossy_color"
+        variableDict["IOR"] = "IOR_reflection"
+        variableDict["mirror_color"] = "coat_mir_col"
 
     elif mat.mat_type == "shinydiffusemat":
         variableDict["color"] = "diffuse_color"
         variableDict["diffuse_color"] = ""
+        variableDict["IOR"] = "IOR_reflection"
+
+    elif mat.mat_type in ["glass", "rough_glass"]:
+        variableDict["IOR"] = "IOR_refraction"
+        variableDict["alpha"] = "refr_roughness"
+        variableDict["mirror_color"] = "glass_mir_col"
+        variableDict["transmit_filter"] = "glass_transmit"
 
     for p in props:
         value = props[p]
-        print(p, value)
 
         if p in variableDict:
-            print("p in dict:", p, variableDict[p])
+            # print("p in dict:", p, variableDict[p])
             p = variableDict[p]
 
         if p == "type":
             continue
         if p == "mask":
             continue
-        if p in ["material1", "material2"]:
-            if value not in materialNames:
-                problemList.append("Broken blend material: " + mat.name + " replacing ...")
-                exec("mat." + p + " = \"" + materialList[0][0] + "\"")
-                continue
+
+        # if p in ["material1", "material2"]:
+        #    if value not in materialNames:
+        #        problemList.append("Broken blend material: " + mat.name + " replacing ...")
+        #        exec("mat." + p + " = \"" + materialList[0][0] + "\"")
+        #        continue
 
         if p == "brdf_type" or p == "brdfType":
             if value == "Oren-Nayar":
                 mat.brdf_type = "oren-nayar"
             continue
-
-        # print("type:", type(value))
 
         try:
             if type(value) in [float, int, bool]:
@@ -284,13 +286,33 @@ def convertMaterial(mat):
 def convertWorld(world):
     problemList = []
 
-    # print("convert", mat.name)
     props = world.get("YafRay", None)
     if not props:
         problemList.append("No properties on world")
         return problemList
 
     bg_type = props["bg_type"]
+
+    variableDict = dict(
+        zenith_color = "zenith_color",
+        horizon_color = "horizon_color",
+        horizon_ground_color = "bg_horizon_ground_color",
+        zenith_ground_color = "bg_zenith_ground_color",
+        color = "bg_single_color",
+        ibl = "bg_use_ibl",
+        dsturbidity = "bg_turbidity",
+        dsadd_sun = "bg_add_sun",
+        dssun_power = "bg_sun_power",
+        dsbackgroundlight = "bg_background_light",
+        dslight_samples = "bg_light_samples",
+        dspower = "bg_dsbright",
+        dsexposure = "bg_exposure",
+        dsgammenc = "bg_gamma_enc",
+        volType = "v_int_type",
+        stepSize = "v_int_step_size",
+        adaptive = "v_int_adaptive",
+        optimize = "v_int_optimize",
+        attgridScale = "v_int_attgridres")
 
     bgTypeDict = dict()
     bgTypeDict["Single Color"] = "Single Color"
@@ -303,51 +325,19 @@ def convertWorld(world):
 
     for p in props:
         value = props[p]
-        # print(p, props[p])
 
-        if p in ['zenith_color', 'horizon_color']:
-            exec("world." + p + " = [" + str(value[0]) + ", " + str(value[1]) + ", " + str(value[2]) + "]")
-            continue
-        if p in ['color']:
-            exec("world.bg_single_color = [" + str(value[0]) + ", " + str(value[1]) + ", " + str(value[2]) + "]")
-            continue
-        if p in ['ibl']:
-            exec("world.bg_use_ibl = " + str(value))
-            continue
-        if p in ['dsturbidity']:
-            exec("world.bg_turbidity = " + str(value))
-            continue
-        if p in ['dsadd_sun']:
-            exec("world.bg_add_sun = " + str(value))
-            continue
-        if p in ['dssun_power']:
-            exec("world.bg_sun_power = " + str(value))
-            continue
-        if p in ['dsbackground_light']:
-            exec("world.bg_background_light = " + str(value))
-            continue
-        if p in ['dslight_samples']:
-            exec("world.bg_light_samples = " + str(value))
-            continue
-        if p in ['dspower']:
-            exec("world.bg_power = " + str(value))
-            continue
-        if p in ['dsexposure']:
-            exec("world.bg_exposure = " + str(value))
-            continue
-        if p in ['dsgammaenc']:
-            exec("world.bg_gamma_enc = " + str(value))
-            continue
-        # FIXME: ignore following properties, may not be correct
-        if p in ['alpha', 'sigma_t', 'attgridScale', 'optimize', 'adaptive', 'stepSize', 'volType', 'dscolorspace', 'with_caustic', 'with_diffuse', 'bg_type', 'dsa', 'dsb', 'dsc', 'dsd', 'dse', 'dsf']:
-            continue
+        if p in variableDict:
+            p = variableDict[p]
 
-        if type(value) in [float, int, bool]:
-            exec("world.bg_" + p + " = " + str(value))
-        elif type(value) in [str]:
-            exec("world.bg_" + p + " = \"" + value + "\"")
-        else:
-            exec("world.bg_" + p + " = [" + str(value[0]) + ", " + str(value[1]) + ", " + str(value[2]) + "]")
+        try:
+            if type(value) in [float, int, bool]:
+                exec("world." + p + " = " + str(value))
+            elif type(value) in [str]:
+                exec("world." + p + " = \"" + value + "\"")
+            else:
+                exec("world." + p + " = [" + str(value[0]) + ", " + str(value[1]) + ", " + str(value[2]) + "]")
+        except:
+            problemList.append("World: Problem inserting: " + p)
 
     return problemList
 
@@ -368,7 +358,6 @@ def convertAASettings(scene):
 
     for p in props:
         value = props[p]
-        # print(p, props[p])
 
         if p in variableDict:
             p = variableDict[p]
@@ -401,10 +390,19 @@ def convertGeneralSettings(scene):
         shadowDepth = "shadow_depth",
         gammaInput = "gamma_input",
         clayRender = "clay_render",
-        drawPArams = "draw_params",
+        drawParams = "draw_params",
         customString = "custom_string",
         autoalpha = "auto_alpha",
         transpShad = "transp_shad")
+
+    try:  # not for old 0.1.1 yafaray
+        tileOrder = props["tiles_order"]
+        tileOrderDict = dict()
+        tileOrderDict["Linear"] = "linear"
+        tileOrderDict["Random"] = "random"
+        scene.gs_tile_order = tileOrderDict[tileOrder]
+    except:
+        print("No tile order propertie found, file from old yafaray 0.1.1 exporter")
 
     for p in props:
         value = props[p]

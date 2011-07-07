@@ -1,68 +1,72 @@
-import os as real_os # somehow, os as a module name becomes unavailable with bpy import
+import os
 import bpy
 import re
 from  math import *
 
+
 def noise2string(ntype):
+    a = {
+        'BLENDER_ORIGINAL': 'blender',
+        'ORIGINAL_PERLIN': 'stdperlin',
+        'IMPROVED_PERLIN': 'newperlin',
+        'VORONOI_F1': 'voronoi_f1',
+        'VORONOI_F2': 'voronoi_f2',
+        'VORONOI_F3': 'voronoi_f3',
+        'VORONOI_F4': 'voronoi_f4',
+        'VORONOI_F2_F1': 'voronoi_f2f1',
+        'VORONOI_CRACKLE': 'voronoi_crackle',
+        'CELL_NOISE': 'cellnoise',
+        }
 
-    if ntype == 'BLENDER_ORIGINAL'  :  return "blender"
-    elif ntype == 'ORIGINAL_PERLIN' :  return "stdperlin"
-    elif ntype == 'IMPROVED_PERLIN' :  return "newperlin"
-    elif ntype == 'VORONOI_F1'      :  return "voronoi_f1"
-    elif ntype == 'VORONOI_F2'      :  return "voronoi_f2"
-    elif ntype == 'VORONOI_F3'      :  return "voronoi_f3"
-    elif ntype == 'VORONOI_F4'      :  return "voronoi_f4"
-    elif ntype == 'VORONOI_F2_F1'   :  return "voronoi_f2f1"
-    elif ntype == 'VORONOI_CRACKLE' :  return "voronoi_crackle"
-    elif ntype == 'CELL_NOISE'      :  return "cellnoise"
-    return "newperlin"
+    return a.get(ntype, 'newperlin')
 
-#this function is tested under linux
-def get_image_filename(filepath):
-    path = filepath.replace('//',os.path.expanduser('~')+'/',1)
-    return os.path.abspath(path)
 
 class yafTexture:
     def __init__(self, interface):
         self.yi = interface
         self.loadedTextures = set()
 
-    def writeTexture(self,scene,tex):
+    def writeTexture(self, scene, tex):
         name = tex.name
-        
-        if name in self.loadedTextures: return
-        
+
+        if name in self.loadedTextures:
+            return
+
         yi = self.yi
         yi.paramsClearAll()
-        
+
         textureConfigured = False
 
         if tex.type == 'BLEND':
-
             yi.printInfo("Exporter: Creating Texture: \"" + name + "\" type BLEND")
             yi.paramsSetString("type", "blend")
-            stype = "lin"
-            if tex.progression   == 'LINEAR'           :    stype = "lin"
-            elif tex.progression == 'QUADRATIC'        :    stype = "quad"
-            elif tex.progression == 'EASING'           :    stype = "ease"
-            elif tex.progression == 'DIAGONAL'         :    stype = "diag"
-            elif tex.progression == 'SPHERICAL'        :    stype = "sphere"
-            elif tex.progression == 'QUADRATIC_SPHERE' :    stype = "halo"
+
+            switchBlendType = {
+                'LINEAR': 'lin',
+                'QUADRATIC': 'quad',
+                'EASING': 'ease',
+                'DIAGONAL': 'diag',
+                'SPHERICAL': 'sphere',
+                'QUADRATIC_SPHERE': 'halo',
+                'RADIAL': 'radial',
+            }
+
+            stype = switchBlendType.get(tex.progression, 'lin')  # set blend type for blend texture, default is 'lin'
             yi.paramsSetString("stype", stype)
 
             textureConfigured = True
 
         elif tex.type == 'CLOUDS':
-
             yi.printInfo("Exporter: Creating Texture: \"" + name + "\" type CLOUDS")
             yi.paramsSetString("type", "clouds")
 
             noise_size = tex.noise_scale
-            if  noise_size > 0: noise_size = 1.0/noise_size
+            if  noise_size > 0:
+                noise_size = 1.0 / noise_size
 
             yi.paramsSetFloat("size", noise_size)
 
-            if tex.noise_type == 'HARD_NOISE' :
+            if tex.noise_type == 'HARD_NOISE':
                 hard = True
             else:
                 hard = False
@@ -73,7 +77,6 @@ class yafTexture:
             textureConfigured = True
 
         elif tex.type == 'WOOD':
-
             yi.printInfo("Exporter: Creating Texture: \"" + name + "\" type WOOD")
             yi.paramsSetString("type", "wood")
 
@@ -89,37 +92,36 @@ class yafTexture:
                 noise_size = tex.noise_scale
 
                 if  noise_size > 0:
-                    noise_size = 1.0/noise_size
-                if tex.noise_type == 'SOFT_NOISE' :
+                    noise_size = 1.0 / noise_size
+                if tex.noise_type == 'SOFT_NOISE':
                     hard = False
 
             yi.paramsSetFloat("turbulence", turb)
             yi.paramsSetFloat("size", noise_size)
-            yi.paramsSetBool("hard", hard )
+            yi.paramsSetBool("hard", hard)
 
             ts = "bands"
 
             if tex.wood_type == 'RINGS' or tex.wood_type == 'RINGNOISE':
                 ts = "rings"
 
-            yi.paramsSetString("wood_type", ts )
-            yi.paramsSetString("noise_type", noise2string(tex.noise_basis) )
+            yi.paramsSetString("wood_type", ts)
+            yi.paramsSetString("noise_type", noise2string(tex.noise_basis))
 
             # shape parameter
 
-            if tex.noise_basis == 'SAW'  :
-                ts="saw"
-            elif tex.noise_basis == 'TRI':
-                ts="tri"
+            if tex.noise_basis_2 == 'SAW':
+                ts = "saw"
+            elif tex.noise_basis_2 == 'TRI':
+                ts = "tri"
             else:
                 ts = "sin"
 
-            yi.paramsSetString("shape", ts )
+            yi.paramsSetString("shape", ts)
 
             textureConfigured = True
 
         elif tex.type == 'MARBLE':
-
             yi.printInfo("Exporter: Creating Texture: \"" + name + "\" type MARBLE")
             yi.paramsSetString("type", "marble")
 
@@ -128,15 +130,15 @@ class yafTexture:
 
             noise_size = tex.noise_scale
             if  noise_size > 0:
-                noise_size = 1.0/noise_size
+                noise_size = 1.0 / noise_size
 
-            if tex.noise_type == 'HARD_NOISE' :
+            if tex.noise_type == 'HARD_NOISE':
                 hard = True
             else:
                 hard = False
 
             yi.paramsSetFloat("size", noise_size)
-            yi.paramsSetBool("hard", hard )
+            yi.paramsSetBool("hard", hard)
 
             sharp = 4.0
             if tex.marble_type == 'SOFT':
@@ -147,12 +149,12 @@ class yafTexture:
                 sharp = 8.0
 
             yi.paramsSetFloat("sharpness", sharp)
-            yi.paramsSetString("noise_type", noise2string(tex.noise_basis) )
+            yi.paramsSetString("noise_type", noise2string(tex.noise_basis))
 
-            if tex.noisebasis_2 == 'SAW'  :
-                ts="saw"
-            elif tex.noisebasis_2 == 'TRI':
-                ts="tri"
+            if tex.noise_basis_2 == 'SAW':
+                ts = "saw"
+            elif tex.noise_basis_2 == 'TRI':
+                ts = "tri"
             else:
                 ts = "sin"
 
@@ -161,7 +163,6 @@ class yafTexture:
             textureConfigured = True
 
         elif tex.type == 'VORONOI':
-
             yi.printInfo("Exporter: Creating Texture: \"" + name + "\" type VORONOI")
             yi.paramsSetString("type", "voronoi")
 
@@ -186,41 +187,35 @@ class yafTexture:
 
             noise_size = tex.noise_scale
             if  noise_size > 0:
-                noise_size = 1.0/noise_size
+                noise_size = 1.0 / noise_size
             yi.paramsSetFloat("size", noise_size)
 
-            ts = "actual"
-            if tex.distance_metric == 'DISTANCE_SQUARED':
-                ts = "squared"
-            elif tex.distance_metric == 'MANHATTAN':
-                ts = "manhattan"
-            elif tex.distance_metric == 'CHEBYCHEV':
-                ts = "chebychev"
-            elif tex.distance_metric == 'MINKOVSKY_HALF':
-                ts = "minkovsky_half"
-            elif tex.distance_metric == 'MINKOVSKY_FOUR':
-                ts = "minkovsky_four"
-            elif tex.distance_metric == 'MINKOVSKY':
-                ts = "minkovsky"
+            switchDistMetric = {
+                'DISTANCE_SQUARED': 'squared',
+                'MANHATTAN': 'manhattan',
+                'CHEBYCHEV': 'chebychev',
+                'MINKOVSKY_HALF': 'minkovsky_half',
+                'MINKOVSKY_FOOUR': 'minkovsky_four',
+                'MINKOVSKY': 'minkovsky',
+            }
 
+            ts = switchDistMetric.get(tex.distance_metric, 'minkovsky')  # set distance metric for VORONOI Texture, default is 'minkovsky'
             yi.paramsSetString("distance_metric", ts)
 
             textureConfigured = True
 
         elif tex.type == 'MUSGRAVE':
-
             yi.printInfo("Exporter: Creating Texture: \"" + name + "\" type MUSGRAVE")
             yi.paramsSetString("type", "musgrave")
 
-            ts = "fBm"
-            if tex.musgrave_type == 'MULTIFRACTAL'  :
-                ts = "multifractal"
-            elif tex.musgrave_type == 'RIDGED_MULTIFRACTAL':
-                ts = "ridgedmf"
-            elif tex.musgrave_type == 'HYBRID_MULTIFRACTAL':
-                ts = "hybridmf"
-            elif tex.musgrave_type == 'HETERO_TERRAIN':
-                ts = "heteroterrain"
+            switchMusgraveType = {
+                'MULTIFRACTAL': 'multifractal',
+                'RIDGED_MULTIFRACTAL': 'ridgedmf',
+                'HYBRID_MULTIFRACTAL': 'hybridmf',
+                'HETERO_TERRAIN': 'heteroterrain',
+                'FBM': 'fBm',
+                }
+            ts = switchMusgraveType.get(tex.musgrave_type, 'multifractal')  # set MusgraveType, default is 'multifractal'
 
             yi.paramsSetString("musgrave_type", ts)
             yi.paramsSetString("noise_type", noise2string(tex.noise_basis))
@@ -230,7 +225,7 @@ class yafTexture:
 
             noise_size = tex.noise_scale
             if  noise_size > 0:
-                noise_size = 1.0/noise_size
+                noise_size = 1.0 / noise_size
             yi.paramsSetFloat("size", noise_size)
 
             yi.paramsSetFloat("intensity", tex.offset)
@@ -238,7 +233,6 @@ class yafTexture:
             textureConfigured = True
 
         elif tex.type == 'DISTORTED_NOISE':
-
             yi.printInfo("Exporter: Creating Texture: \"" + name + "\" type DISTORTED NOISE")
             yi.paramsSetString("type", "distorted_noise")
 
@@ -246,7 +240,7 @@ class yafTexture:
 
             noise_size = tex.noise_scale
             if  noise_size > 0:
-                noise_size = 1.0/noise_size
+                noise_size = 1.0 / noise_size
             yi.paramsSetFloat("size", noise_size)
 
             yi.paramsSetString("noise_type1", noise2string(tex.noise_basis))
@@ -257,11 +251,10 @@ class yafTexture:
         elif tex.type == 'IMAGE' and tex.image:
             image_tex = tex.image
             image_file = bpy.path.abspath(image_tex.filepath)
-            image_file = real_os.path.realpath(image_file)
-            image_file = real_os.path.normpath(image_file)
+            image_file = os.path.realpath(image_file)
+            image_file = os.path.normpath(image_file)
 
-            #if tex.tex_file_name != "" and not os.path.exists(tex.tex_file_name): # org
-            if image_file != "" and not real_os.path.exists(image_file):
+            if image_file != "" and not os.path.exists(image_file):
                 yi.printInfo("Exporter: No valid texture image supplied.")
                 return False
 
@@ -274,6 +267,9 @@ class yafTexture:
             yi.paramsSetBool("calc_alpha", tex.use_calculate_alpha)
             yi.paramsSetBool("normalmap", tex.yaf_is_normal_map)
             yi.paramsSetFloat("gamma", scene.gs_gamma_input)
+            #  yi.paramsSetFloat("exposure_adjust", tex.yaf_tex_expadj)  # experimental?
+            if not tex.yaf_tex_interpolate == 'bilinear':  # bilinear is set by default
+                yi.paramsSetString("interpolate", tex.yaf_tex_interpolate)
 
             # repeat
             repeat_x = 1
@@ -287,21 +283,18 @@ class yafTexture:
             yi.paramsSetInt("yrepeat", repeat_y)
 
             # clipping
-            ext = tex.extension
-
-            #print tex.getExtend()
-            if ext == 'EXTEND':
-                yi.paramsSetString("clipping", "extend")
-            elif ext == 'CLIP':
-                yi.paramsSetString("clipping", "clip")
-            elif ext == 'CLIP_CUBE':
-                yi.paramsSetString("clipping", "clipcube")
-            elif ext == "CHECKER": #Blender.Texture.ExtendModes.CHECKER:
-                yi.paramsSetString("clipping", "checker")
-                yi.paramsSetBool("even_tiles", tex.use_checker_even) # blender = yafaray, equals
-                yi.paramsSetBool("odd_tiles", tex.use_checker_odd) # blender = yafaray, equals
-            else:
-                yi.paramsSetString("clipping", "repeat")
+            extension = tex.extension
+            switchExtension = {
+                'EXTEND': 'extend',
+                'CLIP': 'clip',
+                'CLIP_CUBE': 'clipcube',
+                'CHECKER': 'checker',
+                }
+            clipping = switchExtension.get(extension, 'repeat')  # set default clipping to 'repeat'
+            yi.paramsSetString("clipping", clipping)
+            if clipping == 'checker':
+                yi.paramsSetBool("even_tiles", tex.use_checker_even)
+                yi.paramsSetBool("odd_tiles", tex.use_checker_odd)
 
             # crop min/max
             yi.paramsSetFloat("cropmin_x", tex.crop_min_x)
@@ -317,4 +310,3 @@ class yafTexture:
             self.loadedTextures.add(name)
 
         return textureConfigured
-

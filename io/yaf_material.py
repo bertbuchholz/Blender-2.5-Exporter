@@ -2,19 +2,25 @@ import bpy
 import mathutils
 import yafrayinterface
 
+
 def proj2int(val):
-    if val   == 'NONE' : return 0
-    elif val == 'X'    : return 1
-    elif val == 'Y'    : return 2
-    elif val == 'Z'    : return 3
+    if val == 'NONE':
+        return 0
+    elif val == 'X':
+        return 1
+    elif val == 'Y':
+        return 2
+    elif val == 'Z':
+        return 3
+
 
 class yafMaterial:
     def __init__(self, interface, mMap, texMap):
-        self.yi          = interface
+        self.yi = interface
         self.materialMap = mMap
-        self.textureMap  = texMap
+        self.textureMap = texMap
 
-    def namehash(self,obj):
+    def namehash(self, obj):
         nh = obj.name + "-" + str(obj.__hash__())
         return nh
 
@@ -27,8 +33,10 @@ class yafMaterial:
         return used_textures
 
     def writeTexLayer(self, name, tex_in, ulayer, mtex, chanflag, dcol, factor):
-        if mtex.name not in self.textureMap: return False
-        if not chanflag: return False
+        if mtex.name not in self.textureMap:
+            return False
+        if not chanflag:
+            return False
 
         yi = self.yi
         yi.paramsPushList()
@@ -36,43 +44,38 @@ class yafMaterial:
         yi.paramsSetString("type", "layer")
         yi.paramsSetString("name", name)
 
-        yi.paramsSetString("input", tex_in)# SEE the defination later
+        yi.paramsSetString("input", tex_in)  # SEE the defination later
 
         #mtex is an instance of MaterialTextureSlot class
 
-
-        mode = 0
-        if mtex.blend_type == 'MIX':
-            mode = 0
-        elif mtex.blend_type == 'ADD':
-            mode = 1
-        elif mtex.blend_type == 'MULTIPLY':
-            mode = 2
-        elif mtex.blend_type == 'SUBTRACT':
-            mode = 3
-        elif mtex.blend_type == 'SCREEN':
-            mode = 4
-        elif mtex.blend_type == 'DIVIDE':
-            mode = 5
-        elif mtex.blend_type == 'DIFFERENCE':
-            mode = 6
-        elif mtex.blend_type == 'DARKEN':
-            mode = 7
-        elif mtex.blend_type == 'LIGHTEN':
-            mode = 8
-
-
+        switchBlendMode = {
+            'MIX': 0,
+            'ADD': 1,
+            'MULTIPLY': 2,
+            'SUBTRACT': 3,
+            'SCREEN': 4,
+            'DIVIDE': 5,
+            'DIFFERENCE': 6,
+            'DARKEN': 7,
+            'LIGHTEN': 8,
+        }
+        
+        mode = switchBlendMode.get(mtex.blend_type, 0)  # set texture blend mode, if not a supported mode then set it to 'MIX'
         yi.paramsSetInt("mode", mode)
-        yi.paramsSetBool("stencil", mtex.use_stencil) # sync. values to Blender for re-link textures
+        yi.paramsSetBool("stencil", mtex.use_stencil)  
 
         negative = mtex.invert
-
         yi.paramsSetBool("negative", negative)
+
+        if factor < 0:  # check for negative values
+            factor = factor * -1
+            yi.paramsSetBool("negative", True)
 
         # "hack", scalar maps should always convert the RGB intensity to scalar
         # not clear why without this and noRGB == False, maps on scalar values seem to be "white" everywhere
         noRGB = mtex.use_rgb_to_intensity
-        if len(dcol) == 1: noRGB = True
+        if len(dcol) == 1 and not name[:12] == 'transp_layer':  # hack for transparency intensity maps with 'use alpha'
+            noRGB = True
 
         yi.paramsSetBool("noRGB", noRGB)
 
@@ -82,10 +85,9 @@ class yafMaterial:
         tex = mtex.texture  # texture object instance
         # lots to do...
 
-        isImage = ( tex.type == 'IMAGE' )
-        #isImage = ( tex.yaf_tex_type == 'IMAGE' )
+        isImage = (tex.type == 'IMAGE')
 
-        if (isImage or (tex.type == 'VORONOI' and tex.color_mode != 'INTENSITY') ):
+        if (isImage or (tex.type == 'VORONOI' and tex.color_mode != 'INTENSITY')):
             isColored = True
         else:
             isColored = False
@@ -98,8 +100,7 @@ class yafMaterial:
 
         yi.paramsSetBool("use_alpha", useAlpha)
 
-
-        do_color = len(dcol) >= 3 #see defination of dcol later on, watch the remaining parts from now on.
+        do_color = len(dcol) >= 3  # see defination of dcol later on, watch the remaining parts from now on.
 
         if ulayer == "":
             if do_color:
@@ -121,7 +122,6 @@ class yafMaterial:
 
         return True
 
-
     def writeMappingNode(self, name, texname, mtex):
         yi = self.yi
         yi.paramsPushList()
@@ -129,76 +129,74 @@ class yafMaterial:
         yi.paramsSetString("element", "shader_node")
         yi.paramsSetString("type", "texture_mapper")
         yi.paramsSetString("name", name)
-        #yi.paramsSetString("texture", self.namehash(mtex.tex))
         yi.paramsSetString("texture", mtex.texture.name)
 
-        #'UV'  'GLOBAL' 'ORCO' , 'WINDOW', 'NORMAL' 'REFLECTION' 'STICKY' 'STRESS' 'TANGENT'
-        # texture coordinates, have to disable 'sticky' in Blender
-        #change to coord. type Blender, texture_coords.  for test
-        yi.paramsSetString("texco", "orco")
-        if mtex.texture_coords == 'UV'          :          yi.paramsSetString("texco", "uv")
-        elif mtex.texture_coords == 'GLOBAL'    :          yi.paramsSetString("texco", "global")
-        elif mtex.texture_coords == 'ORCO'      :          yi.paramsSetString("texco", "orco")
-        elif mtex.texture_coords == 'WINDOW'    :          yi.paramsSetString("texco", "window")
-        elif mtex.texture_coords == 'NORMAL'    :          yi.paramsSetString("texco", "normal")
-        elif mtex.texture_coords == 'REFLECTION':          yi.paramsSetString("texco", "reflect")
-        elif mtex.texture_coords == 'STICKY'    :          yi.paramsSetString("texco", "stick")
-        elif mtex.texture_coords == 'STRESS'    :          yi.paramsSetString("texco", "stress")
-        elif mtex.texture_coords == 'TANGENT'   :          yi.paramsSetString("texco", "tangent")
+        switchTexCoords = {
+            'UV': 'uv',
+            'GLOBAL': 'global',
+            'ORCO': 'orco',
+            'WINDOW': 'window',
+            'NORMAL': 'normal',
+            'REFLECTION': 'reflect',
+            'STICKY': 'stick',
+            'STRESS': 'stress',
+            'TANGENT': 'tangent',
+            'OBJECT': 'transformed',
+        }
 
-        elif mtex.texture_coords == 'OBJECT':
+        texco = switchTexCoords.get(mtex.texture_coords, 'orco')  # get texture coords, default is 'orco'
+        yi.paramsSetString("texco", texco)
 
-            yi.paramsSetString("texco", "transformed")
+        if mtex.object:
+            texmat = mtex.object.matrix_local.inverted()
+            rtmatrix = yafrayinterface.new_floatArray(4 * 4)
 
-            if mtex.object is not None:
+            for x in range(4):
+                for y in range(4):
+                    idx = (y + x * 4)
+                    yafrayinterface.floatArray_setitem(rtmatrix, idx, texmat[x][y])
 
-                texmat = mtex.object.matrix_local.copy().invert()
-                rtmatrix = yafrayinterface.new_floatArray(4*4)
-
-                for x in range(4):
-                    for y in range(4):
-                        idx = (y + x * 4)
-                        yafrayinterface.floatArray_setitem(rtmatrix, idx, texmat[x][y])
-
-                yi.paramsSetMemMatrix("transform", rtmatrix, True)
-                yafrayinterface.delete_floatArray(rtmatrix)
+            yi.paramsSetMemMatrix("transform", rtmatrix, True)
+            yafrayinterface.delete_floatArray(rtmatrix)
 
         yi.paramsSetInt("proj_x", proj2int(mtex.mapping_x))
         yi.paramsSetInt("proj_y", proj2int(mtex.mapping_y))
         yi.paramsSetInt("proj_z", proj2int(mtex.mapping_z))
 
-        if   mtex.mapping == 'FLAT'   : yi.paramsSetString("mapping", "plain")
-        elif mtex.mapping == 'CUBE'   : yi.paramsSetString("mapping", "cube")
-        elif mtex.mapping == 'TUBE'   : yi.paramsSetString("mapping", "tube")
-        elif mtex.mapping == 'SPHERE' : yi.paramsSetString("mapping", "sphere")
+        if   mtex.mapping == 'FLAT':
+            yi.paramsSetString("mapping", "plain")
+        elif mtex.mapping == 'CUBE':
+            yi.paramsSetString("mapping", "cube")
+        elif mtex.mapping == 'TUBE':
+            yi.paramsSetString("mapping", "tube")
+        elif mtex.mapping == 'SPHERE':
+            yi.paramsSetString("mapping", "sphere")
 
         yi.paramsSetPoint("offset", mtex.offset[0], mtex.offset[1], mtex.offset[2])
         yi.paramsSetPoint("scale", mtex.scale[0], mtex.scale[1], mtex.scale[2])
 
-        if mtex.use_map_normal: #|| mtex->maptoneg & MAP_NORM )
+        if mtex.use_map_normal:  # || mtex->maptoneg & MAP_NORM )
             # scale up the normal factor, it resembles
             # blender a bit more
-            nf = mtex.normal_factor * 5
+            nf = mtex.normal_factor * 2
             yi.paramsSetFloat("bump_strength", nf)
-
 
     def writeGlassShader(self, mat, rough):
 
-        #mat : is an instance of material
+        # mat : is an instance of material
         yi = self.yi
         yi.paramsClearAll()
 
-        if rough: # create bool property "rough"
+        if rough:  # create bool property "rough"
             yi.paramsSetString("type", "rough_glass")
-            yi.paramsSetFloat("exponent", mat.exponent )
-            yi.paramsSetFloat("alpha", mat.alpha )
+            yi.paramsSetFloat("alpha", mat.refr_roughness)  # added refraction roughness for roughglass material
         else:
             yi.paramsSetString("type", "glass")
 
-        yi.paramsSetFloat("IOR", mat.IOR)
+        yi.paramsSetFloat("IOR", mat.IOR_refraction)  # added IOR for refraction
         filt_col = mat.filter_color
-        mir_col = mat.mirror_color
-        tfilt = mat.transmit_filter
+        mir_col = mat.glass_mir_col
+        tfilt = mat.glass_transmit
         abs_col = mat.absorption
 
         yi.paramsSetColor("filter_color", filt_col[0], filt_col[1], filt_col[2])
@@ -214,15 +212,15 @@ class yafMaterial:
         fcolRoot = ''
         bumpRoot = ''
 
-        i=0
+        i = 0
         used_textures = self.getUsedTextures(mat)
 
         for mtex in used_textures:
             used = False
-            mappername = "map%x" %i
+            mappername = "map%x" % i
 
             lname = "mircol_layer%x" % i
-            if self.writeTexLayer(lname, mappername, mcolRoot, mtex, mtex.use_map_color_spec, mir_col, mtex.specular_color_factor):
+            if self.writeTexLayer(lname, mappername, mcolRoot, mtex, mtex.use_map_mirror, mir_col, mtex.mirror_factor):
                 used = True
                 mcolRoot = lname
             lname = "bump_layer%x" % i
@@ -231,38 +229,40 @@ class yafMaterial:
                 bumpRoot = lname
             if used:
                 self.writeMappingNode(mappername, mtex.texture.name, mtex)
-                i +=1
+                i += 1
 
         yi.paramsEndList()
-        if len(mcolRoot) > 0: yi.paramsSetString("mirror_color_shader", mcolRoot)
-        if len(bumpRoot) > 0: yi.paramsSetString("bump_shader", bumpRoot)
+        if len(mcolRoot) > 0:
+            yi.paramsSetString("mirror_color_shader", mcolRoot)
+        if len(bumpRoot) > 0:
+            yi.paramsSetString("bump_shader", bumpRoot)
 
         return yi.createMaterial(self.namehash(mat))
 
-    def writeGlossyShader(self, mat, coated): #mat : instance of material class
+    def writeGlossyShader(self, mat, coated):  # mat : instance of material class
         yi = self.yi
         yi.paramsClearAll()
 
-        if coated: # create bool property
+        if coated:  # create bool property
             yi.paramsSetString("type", "coated_glossy")
-            yi.paramsSetFloat("IOR", mat.IOR)
+            yi.paramsSetFloat("IOR", mat.IOR_reflection)  # IOR for reflection
+            mir_col = mat.coat_mir_col  # added mirror color for coated glossy
+            yi.paramsSetColor("mirror_color", mir_col[0], mir_col[1], mir_col[2])
         else:
             yi.paramsSetString("type", "glossy")
 
         diffuse_color = mat.diffuse_color
-        color         = mat.glossy_color
+        color = mat.glossy_color
 
         yi.paramsSetColor("diffuse_color", diffuse_color[0], diffuse_color[1], diffuse_color[2])
-        yi.paramsSetColor("color", color[0],color[1], color[2])
+        yi.paramsSetColor("color", color[0], color[1], color[2])
         yi.paramsSetFloat("glossy_reflect", mat.glossy_reflect)
         yi.paramsSetFloat("exponent", mat.exponent)
         yi.paramsSetFloat("diffuse_reflect", mat.diffuse_reflect)
         yi.paramsSetBool("as_diffuse", mat.as_diffuse)
-
-
         yi.paramsSetBool("anisotropic", mat.anisotropic)
-        yi.paramsSetFloat("exp_u", mat.exp_u )
-        yi.paramsSetFloat("exp_v", mat.exp_v )
+        yi.paramsSetFloat("exp_u", mat.exp_u)
+        yi.paramsSetFloat("exp_v", mat.exp_v)
 
         diffRoot = ''
         mcolRoot = ''
@@ -270,12 +270,12 @@ class yafMaterial:
         glRefRoot = ''
         bumpRoot = ''
 
-        i=0
+        i = 0
         used_textures = self.getUsedTextures(mat)
- 
+
         for mtex in used_textures:
             used = False
-            mappername = "map%x" %i
+            mappername = "map%x" % i
 
             lname = "diff_layer%x" % i
             if self.writeTexLayer(lname, mappername, diffRoot, mtex, mtex.use_map_color_diffuse, diffuse_color, mtex.diffuse_color_factor):
@@ -295,16 +295,20 @@ class yafMaterial:
                 bumpRoot = lname
             if used:
                 self.writeMappingNode(mappername, mtex.texture.name, mtex)
-            i +=1
+            i += 1
 
         yi.paramsEndList()
-        if len(diffRoot)  > 0 : yi.paramsSetString("diffuse_shader", diffRoot)
-        if len(glossRoot) > 0 : yi.paramsSetString("glossy_shader", glossRoot)
-        if len(glRefRoot) > 0 : yi.paramsSetString("glossy_reflect_shader", glRefRoot)
-        if len(bumpRoot)  > 0 : yi.paramsSetString("bump_shader", bumpRoot)
+        if len(diffRoot) > 0:
+            yi.paramsSetString("diffuse_shader", diffRoot)
+        if len(glossRoot) > 0:
+            yi.paramsSetString("glossy_shader", glossRoot)
+        if len(glRefRoot) > 0:
+            yi.paramsSetString("glossy_reflect_shader", glRefRoot)
+        if len(bumpRoot) > 0:
+            yi.paramsSetString("bump_shader", bumpRoot)
 
-        if mat.brdf_type == "Oren-Nayar":
-            yi.paramsSetString("diffuse_brdf", "oren_nayar")
+        if mat.brdf_type == "oren-nayar":  # oren-nayar fix for glossy
+            yi.paramsSetString("diffuse_brdf", "Oren-Nayar")
             yi.paramsSetFloat("sigma", mat.sigma)
 
         return yi.createMaterial(self.namehash(mat))
@@ -315,18 +319,14 @@ class yafMaterial:
 
         yi.paramsSetString("type", "shinydiffusemat")
 
-        #link values Yafaray / Blender
-        # provisional, for test only
-        #TODO: change name of 'variables'?
-        
-        bCol      = mat.diffuse_color
-        mirCol    = mat.mirror_color
-        bSpecr    = mat.specular_reflect
-        bTransp   = mat.transparency
-        bTransl   = mat.translucency
+        bCol = mat.diffuse_color
+        mirCol = mat.mirror_color
+        bSpecr = mat.specular_reflect
+        bTransp = mat.transparency
+        bTransl = mat.translucency
         bTransmit = mat.transmit_filter
-        bEmit     = mat.emit
-        
+        bEmit = mat.emit
+
         if self.preview:
             if mat.name.find("check") != -1:
                 bEmit = 0.35
@@ -341,11 +341,11 @@ class yafMaterial:
         mirrorRoot = ''
         bumpRoot = ''
 
-
         for mtex in used_textures:
-            if not mtex.texture: continue
+            if not mtex.texture:
+                continue
             used = False
-            mappername = "map%x" %i
+            mappername = "map%x" % i
 
             lname = "diff_layer%x" % i
             if self.writeTexLayer(lname, mappername, diffRoot, mtex, mtex.use_map_color_diffuse, bCol, mtex.diffuse_color_factor):
@@ -353,7 +353,7 @@ class yafMaterial:
                 diffRoot = lname
 
             lname = "mircol_layer%x" % i
-            if self.writeTexLayer(lname, mappername, mcolRoot, mtex, mtex.use_map_color_spec, mirCol, mtex.specular_color_factor):
+            if self.writeTexLayer(lname, mappername, mcolRoot, mtex, mtex.use_map_mirror, mirCol, mtex.mirror_factor):
                 used = True
                 mcolRoot = lname
 
@@ -368,7 +368,7 @@ class yafMaterial:
                 translRoot = lname
 
             lname = "mirr_layer%x" % i
-            if self.writeTexLayer(lname, mappername, mirrorRoot, mtex, mtex.use_map_specular, [bSpecr], mtex.specular_factor):
+            if self.writeTexLayer(lname, mappername, mirrorRoot, mtex, mtex.use_map_raymir, [bSpecr], mtex.raymir_factor):
                 used = True
                 mirrorRoot = lname
 
@@ -405,9 +405,9 @@ class yafMaterial:
         yi.paramsSetFloat("specular_reflect", bSpecr)
         yi.paramsSetColor("mirror_color", mirCol[0], mirCol[1], mirCol[2])
         yi.paramsSetBool("fresnel_effect", mat.fresnel_effect)
-        yi.paramsSetFloat("IOR", mat.IOR)
+        yi.paramsSetFloat("IOR", mat.IOR_reflection)  # added IOR for reflection
 
-        if mat.brdf_type == "Oren-Nayar":
+        if mat.brdf_type == "oren-nayar":  # oren-nayar fix for shinydiffuse
             yi.paramsSetString("diffuse_brdf", "oren_nayar")
             yi.paramsSetFloat("sigma", mat.sigma)
 
@@ -419,10 +419,10 @@ class yafMaterial:
 
         yi.printInfo("Exporter: Blend material with: [" + mat.material1 + "] [" + mat.material2 + "]")
         yi.paramsSetString("type", "blend_mat")
-        yi.paramsSetString("material1", self.namehash( bpy.data.materials[mat.material1] ))
-        yi.paramsSetString("material2", self.namehash( bpy.data.materials[mat.material2] ))
+        yi.paramsSetString("material1", self.namehash(bpy.data.materials[mat.material1]))
+        yi.paramsSetString("material2", self.namehash(bpy.data.materials[mat.material2]))
 
-        i=0
+        i = 0
 
         diffRoot = ''
         used_textures = self.getUsedTextures(mat)
@@ -432,7 +432,7 @@ class yafMaterial:
                 continue
 
             used = False
-            mappername = "map%x" %i
+            mappername = "map%x" % i
 
             lname = "diff_layer%x" % i
             if self.writeTexLayer(lname, mappername, diffRoot, mtex, mtex.diffuse_factor, [0], mtex.use_map_diffuse):
@@ -440,7 +440,7 @@ class yafMaterial:
                 diffRoot = lname
             if used:
                 self.writeMappingNode(mappername, mtex.texture.name, mtex)
-            i +=1
+            i += 1
 
         yi.paramsEndList()
 
@@ -452,7 +452,6 @@ class yafMaterial:
             yi.paramsSetFloat("blend_value", mat.blend_value)
 
         return yi.createMaterial(self.namehash(mat))
-
 
     def writeMatteShader(self, mat):
         yi = self.yi
@@ -488,4 +487,3 @@ class yafMaterial:
             ymat = self.writeNullMat(mat)
 
         self.materialMap[mat] = ymat
-
