@@ -124,6 +124,8 @@ class yafIntegrator:
             yi.paramsSetInt("pixel_x", scene.intg_pbgi_pixel_x)
             yi.paramsSetInt("pixel_y", scene.intg_pbgi_pixel_y)
             yi.paramsSetBool("do_load_gi_points", scene.intg_pbgi_do_load_gi_points)
+            yi.paramsSetInt("fb_resolution", scene.intg_pbgi_fb_resolution)
+            yi.paramsSetString("fb_type", scene.intg_pbgi_fb_type)
 
 
         yi.createIntegrator("default")

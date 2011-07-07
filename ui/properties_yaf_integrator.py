@@ -142,6 +142,14 @@ Scene.intg_pbgi_render_single_pixel = BoolProperty(default = False);
 Scene.intg_pbgi_pixel_x = IntProperty(min = 0, max = 1000, default = 0);
 Scene.intg_pbgi_pixel_y = IntProperty(min = 0, max = 1000, default = 0);
 Scene.intg_pbgi_do_load_gi_points = BoolProperty(default = False);
+Scene.intg_pbgi_fb_resolution = IntProperty(min = 2, max = 128, default = 16);
+Scene.intg_pbgi_fb_type = EnumProperty(
+    items = (
+        ("Simple", "Simple", ""),
+        ("Accumulating", "Accumulating", "")
+        ),
+    default = "Simple",
+    name = "FB Type")
 
 
 class YAF_PT_render(bpy.types.Panel):
@@ -276,4 +284,6 @@ class YAF_PT_render(bpy.types.Panel):
             col.prop(context.scene, "intg_pbgi_pixel_x", text= "X")
             col.prop(context.scene, "intg_pbgi_pixel_y", text= "Y")
             col.prop(context.scene, "intg_pbgi_do_load_gi_points", text= "Load Points from File")
+            col.prop(context.scene, "intg_pbgi_fb_resolution", text= "FB Resolution")
+            col.prop(context.scene, "intg_pbgi_fb_type", text= "FB Type")
 
