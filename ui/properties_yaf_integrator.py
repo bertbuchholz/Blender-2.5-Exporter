@@ -149,6 +149,29 @@ Scene.intg_pbgi_fb_type = EnumProperty(
     default = "Simple",
     name = "FB Type")
 
+splat_property_items = (
+        ("Single_pixel", "Single_pixel", ""),
+        ("Disc_tracing", "Disc_tracing", ""),
+        ("AA_square", "AA_square", "")
+        )
+
+Scene.intg_pbgi_node_splat_t = EnumProperty(
+    items = splat_property_items,
+    default = "AA_square",
+    name = "Inner Node")
+
+Scene.intg_pbgi_surfel_far_splat_t = EnumProperty(
+    items = splat_property_items,
+    default = "AA_square",
+    name = "Far Surfel")
+
+Scene.intg_pbgi_surfel_near_splat_t = EnumProperty(
+    items = splat_property_items,
+    default = "Disc_tracing",
+    name = "Near Surfel")
+
+Scene.intg_pbgi_surfel_near_threshold = FloatProperty(min = 0.0, max = 10.0, default = 2.0, precision = 3);
+
 
 class YAF_PT_render(bpy.types.Panel):
 
@@ -266,20 +289,24 @@ class YAF_PT_render(bpy.types.Panel):
         elif context.scene.intg_light_method == 'PBGI':
             col = layout.column()
             col.prop(context.scene, "intg_pbgi_samples", text= "Samples")
+            col.prop(context.scene, "intg_pbgi_maxSolidAngle", text= "Solid Angle Factor")
+            angle = math.atan(1.0 / (context.scene.intg_pbgi_fb_resolution))
+            maxSolidAngle = 2.0 * math.pi * (1.0 - math.cos(angle))
+            col.label('Pixel SA: {0:.4}, Used SA: {1:.4}'.format(maxSolidAngle, maxSolidAngle * context.scene.intg_pbgi_maxSolidAngle))
+            col.prop(context.scene, "intg_pbgi_fb_resolution", text= "FB Resolution")
+            col.prop(context.scene, "intg_pbgi_fb_type", text= "FB Type")
+            col.prop(context.scene, "intg_pbgi_node_splat_t", text= "Node Splat Type")
+            col.prop(context.scene, "intg_pbgi_surfel_far_splat_t", text= "Far Splat Type")
+            col.prop(context.scene, "intg_pbgi_surfel_near_splat_t", text= "Near Splat Type")
+            col.prop(context.scene, "intg_pbgi_surfel_near_threshold", text= "Near Surfel Threshold")
+            col.prop(context.scene, "intg_pbgi_do_load_gi_points", text= "Load Points from File")
+            col.separator()
             col.prop(context.scene, "intg_pbgi_indirect", text= "Indirect Only")
             col.prop(context.scene, "intg_pbgi_debug", text= "Debug")
-            col.prop(context.scene, "intg_pbgi_maxSolidAngle", text= "Solid Angle")
             col.prop(context.scene, "intg_pbgi_debugTreeDepth", text= "Debug Tree Depth")
             col.prop(context.scene, "intg_pbgi_debugPointsToFile", text= "Debug Output to File")
             col.prop(context.scene, "intg_pbgi_debug_type", text= "Debug Type")
             col.prop(context.scene, "intg_pbgi_render_single_pixel", text= "Render Single Pixel")
             col.prop(context.scene, "intg_pbgi_pixel_x", text= "X")
             col.prop(context.scene, "intg_pbgi_pixel_y", text= "Y")
-            col.prop(context.scene, "intg_pbgi_do_load_gi_points", text= "Load Points from File")
-            col.prop(context.scene, "intg_pbgi_fb_resolution", text= "FB Resolution")
-            col.prop(context.scene, "intg_pbgi_fb_type", text= "FB Type")
-
-            angle = math.atan(1.0 / (context.scene.intg_pbgi_fb_resolution / 2))
-            maxSolidAngle = 2.0 * math.pi * (1.0 - math.cos(angle))
-            col.label("Solid angle: " + str(maxSolidAngle))
 

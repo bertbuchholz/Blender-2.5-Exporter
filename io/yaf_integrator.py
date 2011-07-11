@@ -1,4 +1,5 @@
 import bpy
+import math
 
 
 class yafIntegrator:
@@ -112,7 +113,6 @@ class yafIntegrator:
             yi.paramsSetInt("samplesPerArea", scene.intg_pbgi_samples)
             yi.paramsSetBool("debug", scene.intg_pbgi_debug)
             yi.paramsSetBool("indirectOnly", scene.intg_pbgi_indirect)
-            yi.paramsSetFloat("maxSolidAngle", scene.intg_pbgi_maxSolidAngle)
             yi.paramsSetInt("debugTreeDepth", scene.intg_pbgi_debugTreeDepth)
             yi.paramsSetBool("debugOutputPointsToFile", scene.intg_pbgi_debugPointsToFile)
             yi.paramsSetString("debug_type", scene.intg_pbgi_debug_type)
@@ -122,6 +122,15 @@ class yafIntegrator:
             yi.paramsSetBool("do_load_gi_points", scene.intg_pbgi_do_load_gi_points)
             yi.paramsSetInt("fb_resolution", scene.intg_pbgi_fb_resolution)
             yi.paramsSetString("fb_type", scene.intg_pbgi_fb_type)
+            yi.paramsSetString("node_splat_type", scene.intg_pbgi_node_splat_t)
+            yi.paramsSetString("surfel_far_splat_type", scene.intg_pbgi_surfel_far_splat_t)
+            yi.paramsSetString("surfel_near_splat_type", scene.intg_pbgi_surfel_near_splat_t)
+            yi.paramsSetFloat("surfel_near_threshold", scene.intg_pbgi_surfel_near_threshold)
+
+            angle = math.atan(1.0 / (scene.intg_pbgi_fb_resolution))
+            maxSolidAngle = 2.0 * math.pi * (1.0 - math.cos(angle))
+
+            yi.paramsSetFloat("maxSolidAngle", scene.intg_pbgi_maxSolidAngle * maxSolidAngle)
 
 
         yi.createIntegrator("default")
