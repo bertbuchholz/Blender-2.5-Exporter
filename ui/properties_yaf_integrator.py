@@ -144,7 +144,9 @@ Scene.intg_pbgi_fb_resolution = IntProperty(min = 2, max = 128, default = 16);
 Scene.intg_pbgi_fb_type = EnumProperty(
     items = (
         ("Simple", "Simple", ""),
-        ("Accumulating", "Accumulating", "")
+        ("Accumulating", "Accumulating", ""),
+        ("Reweighting", "Reweighting", ""),
+        ("Distance_weighted", "Distance_weighted", "")
         ),
     default = "Simple",
     name = "FB Type")
