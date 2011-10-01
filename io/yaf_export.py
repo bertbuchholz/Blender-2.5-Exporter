@@ -311,7 +311,7 @@ class YafaRayRenderEngine(bpy.types.RenderEngine):
         self.yi.clearAll()
         del self.yi
 
-        if scene.intg_pbgi_debug:
+        if scene.gs_type_render == "xml":  # Export the Scene to XML File
             print("XML Debug")
             absolute_outpath = os.path.abspath(os.path.join(rfilepath, 'yaf_xml'))  # output folder for xml file saving from yafaray
             outputFile, output, file_type = self.decideOutputFileName(absolute_outpath, 'XML')
@@ -328,10 +328,11 @@ class YafaRayRenderEngine(bpy.types.RenderEngine):
 
             self.yi.render(co)
 
-            os.spawnl(os.P_NOWAIT, "/amd/vespasien.enst.fr/home/buchholz/workspace-c++/pbgi/src/pbgi", "/amd/vespasien.enst.fr/home/buchholz/workspace-c++/pbgi/src/pbgi", outputFile);
-            print("Started PBGI application")
-
             self.yi.clearAll()
             del self.yi
+
+        if scene.intg_pbgi_debug:
+            os.spawnl(os.P_NOWAIT, "/amd/vespasien.enst.fr/home/buchholz/workspace-c++/pbgi/src/pbgi", "/amd/vespasien.enst.fr/home/buchholz/workspace-c++/pbgi/src/pbgi", outputFile);
+            print("Started PBGI application")
 
         self.bl_use_postprocess = True
