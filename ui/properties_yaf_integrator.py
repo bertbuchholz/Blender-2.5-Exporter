@@ -123,7 +123,7 @@ Scene.intg_photon_radius = FloatProperty(min = 0.0, default = 1.0);
 Scene.intg_pbgi_samples = IntProperty(min = 1, default = 10);
 Scene.intg_pbgi_debug = BoolProperty(default = False);
 Scene.intg_pbgi_indirect = BoolProperty(default = False);
-Scene.intg_pbgi_maxSolidAngle = FloatProperty(min = 0.0, max = 50.0, default = 0.5, precision = 3);
+Scene.intg_pbgi_maxSolidAngle = FloatProperty(min = 0.0, max = 500.0, default = 0.5, precision = 3);
 Scene.intg_pbgi_debugTreeDepth = IntProperty(min = 0, default = 2);
 Scene.intg_pbgi_debugPointsToFile = BoolProperty(default = False);
 Scene.intg_pbgi_debug_type = EnumProperty(
@@ -145,15 +145,26 @@ Scene.intg_pbgi_fb_type = EnumProperty(
     items = (
         ("Simple", "Simple", ""),
         ("Accumulating", "Accumulating", ""),
-        ("Reweighting", "Reweighting", ""),
-        ("Distance_weighted", "Distance_weighted", "")
+        ("Distance_weighted", "Distance_weighted", ""),
+        ("Parameter", "Parameter", "")
         ),
     default = "Simple",
     name = "FB Type")
 
+Scene.intg_pbgi_spherical_fct_type = EnumProperty(
+    items = (
+        ("SH", "Spherical Harmonics", ""),
+        ("Cube", "Cube function", "")
+        ),
+    default = "SH",
+    name = "Spherical Function Type")
+
 splat_property_items = (
         ("Single_pixel", "Single_pixel", ""),
         ("Disc_tracing", "Disc_tracing", ""),
+        ("Stocastic_tracing", "Stocastic_tracing", ""),
+        ("Stocastic_node_tracing", "Stocastic_node_tracing", ""),
+        ("Gaussian_splat", "Gaussian_splat", ""),
         ("AA_square", "AA_square", "")
         )
 
@@ -173,6 +184,29 @@ Scene.intg_pbgi_surfel_near_splat_t = EnumProperty(
     name = "Near Surfel")
 
 Scene.intg_pbgi_surfel_near_threshold = FloatProperty(min = 0.0, max = 10.0, default = 2.0, precision = 3);
+
+Scene.intg_pbgi_variational = BoolProperty(default = False);
+
+Scene.intg_pbgi_enable_conversion = BoolProperty(default = False);
+
+Scene.intg_pbgi_dictionary_type = EnumProperty(
+    items = (
+        ("No_dict", "No_dict", ""),
+        ("Random_dict", "Random_dict", ""),
+        ("Kmeans_dict", "Kmeans_dict", "")
+    ),
+    default = "No_dict",
+    name = "Dict Type")
+
+Scene.intg_pbgi_sf_resolution = IntProperty(min = 2, default = 32);
+
+Scene.intg_pbgi_dict_num_centers = IntProperty(min = 10, default = 100000);
+
+Scene.intg_pbgi_dict_sample_fraction = FloatProperty(min = 0.001, default = 1);
+
+Scene.intg_pbgi_do_dict_stats = BoolProperty(default = True);
+
+Scene.intg_pbgi_disc_scale_factor = FloatProperty(min = 0.2, default = 1);
 
 
 class YAF_PT_render(bpy.types.Panel):
@@ -295,20 +329,34 @@ class YAF_PT_render(bpy.types.Panel):
             angle = math.atan(1.0 / (context.scene.intg_pbgi_fb_resolution))
             maxSolidAngle = 2.0 * math.pi * (1.0 - math.cos(angle))
             col.label('Pixel SA: {0:.4}, Used SA: {1:.4}'.format(maxSolidAngle, maxSolidAngle * context.scene.intg_pbgi_maxSolidAngle))
-            col.prop(context.scene, "intg_pbgi_fb_resolution", text= "FB Resolution")
-            col.prop(context.scene, "intg_pbgi_fb_type", text= "FB Type")
-            col.prop(context.scene, "intg_pbgi_node_splat_t", text= "Node Splat Type")
-            col.prop(context.scene, "intg_pbgi_surfel_far_splat_t", text= "Far Splat Type")
-            col.prop(context.scene, "intg_pbgi_surfel_near_splat_t", text= "Near Splat Type")
-            col.prop(context.scene, "intg_pbgi_surfel_near_threshold", text= "Near Surfel Threshold")
-            col.prop(context.scene, "intg_pbgi_do_load_gi_points", text= "Load Points from File")
+            col.prop(context.scene, "intg_pbgi_fb_resolution", text = "FB Resolution")
+            col.prop(context.scene, "intg_pbgi_fb_type", text = "FB Type")
+
+            col.prop(context.scene, "intg_pbgi_spherical_fct_type", text = "Spherical Function Type")
+            if context.scene.intg_pbgi_spherical_fct_type == 'Cube':
+                col.prop(context.scene, "intg_pbgi_sf_resolution", text = "Cube resolution")
+
+            col.prop(context.scene, "intg_pbgi_dictionary_type", text = "Dicitionary Type")
+            if context.scene.intg_pbgi_dictionary_type != 'No_dict':
+                col.prop(context.scene, "intg_pbgi_dict_num_centers", text = "Dict Centers")
+                col.prop(context.scene, "intg_pbgi_dict_sample_fraction", text = "Dict Sample Fraction")
+                col.prop(context.scene, "intg_pbgi_do_dict_stats", text = "Do Dictionary Stats")
+
+            col.prop(context.scene, "intg_pbgi_variational", text = "Variational")
+            col.prop(context.scene, "intg_pbgi_enable_conversion", text = "Conversion")
+            col.prop(context.scene, "intg_pbgi_disc_scale_factor", text = "Disc Scaling")
+            col.prop(context.scene, "intg_pbgi_node_splat_t", text = "Node Splat Type")
+            col.prop(context.scene, "intg_pbgi_surfel_far_splat_t", text = "Far Splat Type")
+            col.prop(context.scene, "intg_pbgi_surfel_near_splat_t", text = "Near Splat Type")
+            col.prop(context.scene, "intg_pbgi_surfel_near_threshold", text = "Near Surfel Threshold")
             col.separator()
+            col.prop(context.scene, "intg_pbgi_do_load_gi_points", text = "Load Points from File")
             col.prop(context.scene, "intg_pbgi_indirect", text= "Indirect Only")
             col.prop(context.scene, "intg_pbgi_debug", text= "Debug")
-            col.prop(context.scene, "intg_pbgi_debugTreeDepth", text= "Debug Tree Depth")
+            #col.prop(context.scene, "intg_pbgi_debugTreeDepth", text= "Debug Tree Depth")
             col.prop(context.scene, "intg_pbgi_debugPointsToFile", text= "Debug Output to File")
             col.prop(context.scene, "intg_pbgi_debug_type", text= "Debug Type")
-            col.prop(context.scene, "intg_pbgi_render_single_pixel", text= "Render Single Pixel")
-            col.prop(context.scene, "intg_pbgi_pixel_x", text= "X")
-            col.prop(context.scene, "intg_pbgi_pixel_y", text= "Y")
+            #col.prop(context.scene, "intg_pbgi_render_single_pixel", text= "Render Single Pixel")
+            #col.prop(context.scene, "intg_pbgi_pixel_x", text= "X")
+            #col.prop(context.scene, "intg_pbgi_pixel_y", text= "Y")
 

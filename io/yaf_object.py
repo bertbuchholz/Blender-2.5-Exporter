@@ -433,6 +433,11 @@ class yafObject(object):
         self.yi.paramsClearAll()
         self.yi.startGeometry()
 
+        use_for_pbgi = (obj.name.find('nopbgi') == -1)
+        self.yi.paramsSetBool("use_for_pbgi", use_for_pbgi)
+        if not use_for_pbgi:
+            print("No PBGI for obj: ", obj.name)
+
         self.yi.startTriMesh(ID, len(mesh.vertices), len(mesh.faces), hasOrco, hasUV, obType)
 
         for ind, v in enumerate(mesh.vertices):

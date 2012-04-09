@@ -109,8 +109,8 @@ class YAFRENDER_PT_output(YafarayRenderButtonsPanel, bpy.types.Panel):
         split = layout.split(percentage = 0.6)
         col = split.column()
         col.prop(sc, "img_output", text = "", icon = "IMAGE_DATA")
-        col = split.column()
-        col.row().prop(rd, "color_mode", text="Color", expand=True)
+        # col = split.column()
+        # col.row().prop(rd, "color_mode", text="Color", expand=True)
 
 
 class YAFRENDER_PT_post_processing(YafarayRenderButtonsPanel, bpy.types.Panel):

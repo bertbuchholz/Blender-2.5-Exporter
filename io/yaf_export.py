@@ -224,6 +224,7 @@ class YafaRayRenderEngine(bpy.types.RenderEngine):
         if scene.gs_type_render == "xml":  # Export the Scene to XML File
             absolute_outpath = os.path.abspath(os.path.join(rfilepath, 'yaf_xml'))  # output folder for xml file saving from yafaray
             outputFile, output, file_type = self.decideOutputFileName(absolute_outpath, 'XML')
+            outputFile = "/tmp/yafaray_debug.xml"
             self.setInterface(yafrayinterface.xmlInterface_t())
             co = yafrayinterface.imageOutput_t()
             self.yi.setOutfile(outputFile)
@@ -311,25 +312,25 @@ class YafaRayRenderEngine(bpy.types.RenderEngine):
         self.yi.clearAll()
         del self.yi
 
-        if scene.gs_type_render == "xml":  # Export the Scene to XML File
-            print("XML Debug")
-            absolute_outpath = os.path.abspath(os.path.join(rfilepath, 'yaf_xml'))  # output folder for xml file saving from yafaray
-            outputFile, output, file_type = self.decideOutputFileName(absolute_outpath, 'XML')
-            outputFile = "/tmp/yafaray_debug.xml"
-            self.setInterface(yafrayinterface.xmlInterface_t())
-            co = yafrayinterface.imageOutput_t()
-
-            self.yi.setOutfile(outputFile)
-            self.yi.startScene()
-            self.exportScene()
-            self.yaf_integrator.exportIntegrator(self.scene)
-            self.yaf_integrator.exportVolumeIntegrator(self.scene)
-            yaf_scene.exportRenderSettings(self.yi, self.scene)  # must be called last as the params from here will be used by render()
-
-            self.yi.render(co)
-
-            self.yi.clearAll()
-            del self.yi
+        #if scene.gs_type_render == "xml":  # Export the Scene to XML File
+        #    print("XML Debug")
+        #    absolute_outpath = os.path.abspath(os.path.join(rfilepath, 'yaf_xml'))  # output folder for xml file saving from yafaray
+        #    outputFile, output, file_type = self.decideOutputFileName(absolute_outpath, 'XML')
+        #    outputFile = "/tmp/yafaray_debug.xml"
+        #    self.setInterface(yafrayinterface.xmlInterface_t())
+        #    co = yafrayinterface.imageOutput_t()
+        #
+        #    self.yi.setOutfile(outputFile)
+        #    self.yi.startScene()
+        #    self.exportScene()
+        #    self.yaf_integrator.exportIntegrator(self.scene)
+        #    self.yaf_integrator.exportVolumeIntegrator(self.scene)
+        #    yaf_scene.exportRenderSettings(self.yi, self.scene)  # must be called last as the params from here will be used by render()
+        #
+        #    self.yi.render(co)
+        #
+        #    self.yi.clearAll()
+        #    del self.yi
 
         if scene.intg_pbgi_debug:
             os.spawnl(os.P_NOWAIT, "/amd/vespasien.enst.fr/home/buchholz/workspace-c++/pbgi/src/pbgi", "/amd/vespasien.enst.fr/home/buchholz/workspace-c++/pbgi/src/pbgi", outputFile);
