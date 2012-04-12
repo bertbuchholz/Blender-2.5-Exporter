@@ -143,12 +143,12 @@ Scene.intg_pbgi_do_load_gi_points = BoolProperty(default = False);
 Scene.intg_pbgi_fb_resolution = IntProperty(min = 2, max = 128, default = 16);
 Scene.intg_pbgi_fb_type = EnumProperty(
     items = (
-        ("Simple", "Simple", ""),
-        ("Accumulating", "Accumulating", ""),
-        ("Distance_weighted", "Distance_weighted", ""),
+        #("Simple", "Simple", ""),
+        ("Accumulating_frame_buffer_without_queue", "Accumulating", ""),
+        #("Distance_weighted", "Distance_weighted", ""),
         ("Parameter", "Parameter", "")
         ),
-    default = "Simple",
+    default = "Accumulating_frame_buffer_without_queue",
     name = "FB Type")
 
 Scene.intg_pbgi_spherical_fct_type = EnumProperty(
@@ -160,27 +160,27 @@ Scene.intg_pbgi_spherical_fct_type = EnumProperty(
     name = "Spherical Function Type")
 
 splat_property_items = (
-        ("Single_pixel", "Single_pixel", ""),
-        ("Disc_tracing", "Disc_tracing", ""),
-        ("Stocastic_tracing", "Stocastic_tracing", ""),
-        ("Stocastic_node_tracing", "Stocastic_node_tracing", ""),
-        ("Gaussian_splat", "Gaussian_splat", ""),
-        ("AA_square", "AA_square", "")
+        #("Single_pixel", "Single_pixel", ""),
+        ("Disc_splat_strategy", "Disc_splat", ""),
+        #("Stocastic_tracing", "Stocastic_tracing", ""),
+        #("Stocastic_node_tracing", "Stocastic_node_tracing", ""),
+        ("Gaussian_splat_strategy", "Gaussian_splat", ""),
+        ("Square_splat_strategy", "Suare_splat", "")
         )
 
 Scene.intg_pbgi_node_splat_t = EnumProperty(
     items = splat_property_items,
-    default = "AA_square",
+    default = "Square_splat_strategy",
     name = "Inner Node")
 
 Scene.intg_pbgi_surfel_far_splat_t = EnumProperty(
     items = splat_property_items,
-    default = "AA_square",
+    default = "Square_splat_strategy",
     name = "Far Surfel")
 
 Scene.intg_pbgi_surfel_near_splat_t = EnumProperty(
     items = splat_property_items,
-    default = "Disc_tracing",
+    default = "Disc_splat_strategy",
     name = "Near Surfel")
 
 Scene.intg_pbgi_surfel_near_threshold = FloatProperty(min = 0.0, max = 10.0, default = 2.0, precision = 3);
