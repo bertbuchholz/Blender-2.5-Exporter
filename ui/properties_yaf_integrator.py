@@ -165,7 +165,7 @@ splat_property_items = (
         #("Stocastic_tracing", "Stocastic_tracing", ""),
         #("Stocastic_node_tracing", "Stocastic_node_tracing", ""),
         ("Gaussian_splat_strategy", "Gaussian_splat", ""),
-        ("Square_splat_strategy", "Suare_splat", "")
+        ("Square_splat_strategy", "Square_splat", "")
         )
 
 Scene.intg_pbgi_node_splat_t = EnumProperty(
