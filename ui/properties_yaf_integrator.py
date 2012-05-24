@@ -146,7 +146,7 @@ Scene.intg_pbgi_fb_type = EnumProperty(
         #("Simple", "Simple", ""),
         ("Accumulating_frame_buffer_without_queue", "Accumulating", ""),
         #("Distance_weighted", "Distance_weighted", ""),
-        ("Parameter", "Parameter", "")
+        ("Parameter_fb", "Parameter_fb", "")
         ),
     default = "Accumulating_frame_buffer_without_queue",
     name = "FB Type")
