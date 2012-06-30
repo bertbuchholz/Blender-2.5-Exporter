@@ -185,7 +185,8 @@ def register():
             ('Pathtracing', "Pathtracing", ""),
             ('Debug', "Debug", ""),
             ('Bidirectional', "Bidirectional", ""),
-            ('SPPM', "SPPM", "")
+            ('SPPM', "SPPM", ""),
+            ('PBGI', "PBGI", "")
         ),
         default='Direct Lighting')
 
@@ -343,6 +344,41 @@ def register():
         name="Search radius",
         min=0.0,
         default=1.0)
+
+    Scene.intg_pbgi_samples = IntProperty(
+        name = "Samples",
+        min = 1,
+        default = 10);
+
+    Scene.intg_pbgi_indirect = BoolProperty(
+        name = "Indirect only",
+        default = False);
+
+    Scene.intg_pbgi_maxSolidAngle = FloatProperty(
+        name = "Max. solid angle",
+        min = 0.0,
+        max = 500.0,
+        default = 4,
+        precision = 2);
+
+    Scene.intg_pbgi_fb_resolution = IntProperty(
+        name = "Framebuffer res.",
+        min = 2,
+        max = 128,
+        default = 12);
+
+    Scene.intg_pbgi_surfel_near_threshold = FloatProperty(
+        name = "Near surfel thresh.",
+        min = 0.0,
+        max = 10.0,
+        default = 2.0,
+        precision = 3);
+
+    Scene.intg_pbgi_disc_scale_factor = FloatProperty(
+        name = "Disc scale",
+        min = 0.2,
+        max = 2.0,
+        default = 0.56);
 
     ######### YafaRays anti-aliasing properties ###########
     Scene.AA_min_samples = IntProperty(

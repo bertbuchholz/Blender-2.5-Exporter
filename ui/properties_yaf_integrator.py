@@ -19,6 +19,7 @@
 # <pep8 compliant>
 
 import bpy
+import math
 from bpy.types import Panel
 from bl_ui.properties_render import RenderButtonsPanel
 
@@ -112,6 +113,19 @@ class YAF_PT_render(RenderButtonsPanel, Panel):
             col.prop(scene, "intg_diffuse_radius")
             col.prop(scene, "intg_search")
             col.prop(scene, "intg_pm_ire")
+
+        elif scene.intg_light_method == 'PBGI':
+            col = layout.column()
+            col.prop(context.scene, "intg_pbgi_samples")
+            col.prop(context.scene, "intg_pbgi_maxSolidAngle")
+
+            angle = math.atan(1.0 / (context.scene.intg_pbgi_fb_resolution))
+            maxSolidAngle = 2.0 * math.pi * (1.0 - math.cos(angle))
+            col.label('Pixel SA: {0:.4}, Used SA: {1:.4}'.format(maxSolidAngle, maxSolidAngle * context.scene.intg_pbgi_maxSolidAngle))
+
+            col.prop(context.scene, "intg_pbgi_fb_resolution")
+            col.prop(context.scene, "intg_pbgi_disc_scale_factor")
+            col.prop(context.scene, "intg_pbgi_indirect")
 
 
 if __name__ == "__main__":  # only for live edit.

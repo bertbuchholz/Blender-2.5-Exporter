@@ -123,6 +123,16 @@ class yafIntegrator:
             yi.paramsSetInt("passNums", scene.intg_pass_num)
             yi.paramsSetBool("pmIRE", scene.intg_pm_ire)
 
+        elif light_type == "PBGI":
+            yi.paramsSetString("type", "pbgi_simple")
+            yi.paramsSetInt   ("samplesPerArea",          scene.intg_pbgi_samples)
+            yi.paramsSetBool  ("indirectOnly",            scene.intg_pbgi_indirect)
+            yi.paramsSetFloat ("maxSolidAngle",           scene.intg_pbgi_maxSolidAngle)
+            yi.paramsSetInt   ("fb_resolution",           scene.intg_pbgi_fb_resolution)
+            yi.paramsSetFloat ("surfel_near_threshold",   scene.intg_pbgi_surfel_near_threshold)
+            yi.paramsSetFloat ("disc_scale_factor",       scene.intg_pbgi_disc_scale_factor)
+
+
         yi.createIntegrator("default")
         return True
 
