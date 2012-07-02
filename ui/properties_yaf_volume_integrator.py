@@ -49,6 +49,9 @@ class YAF_PT_vol_integrator(WorldButtonsPanel, Panel):
             split.prop(world, "v_int_scale")
             split.prop(world, "v_int_alpha")
 
+        if world.v_int_type == "Decoupled":
+            layout.prop(world, "v_int_step_size")
+
 
 if __name__ == "__main__":  # only for live edit.
     import bpy

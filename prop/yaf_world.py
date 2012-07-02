@@ -231,7 +231,8 @@ def register():
         items=(
             ('None', "None", ""),
             ('Sky', "Sky", ""),
-            ('Single Scatter', "Single Scatter", "")
+            ('Single Scatter', "Single Scatter", ""),
+            ('Decoupled', "Decoupled", "")
         ),
         default='None')
 

@@ -149,6 +149,10 @@ class yafIntegrator:
                 yi.paramsSetFloat("alpha", world.v_int_alpha)
                 yi.paramsSetFloat("sigma_t", world.v_int_scale)
 
+            elif vint_type == 'Decoupled':
+                yi.paramsSetString("type", "Decoupled_scatter_integrator")
+                yi.paramsSetFloat("stepSize", world.v_int_step_size)
+
             else:
                 yi.paramsSetString("type", "none")
         else:
