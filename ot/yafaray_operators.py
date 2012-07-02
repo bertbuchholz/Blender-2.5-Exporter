@@ -1,206 +1,230 @@
+# ##### BEGIN GPL LICENSE BLOCK #####
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU General Public License
+#  as published by the Free Software Foundation; either version 2
+#  of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software Foundation,
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# ##### END GPL LICENSE BLOCK #####
+
+# <pep8 compliant>
+
 import bpy
-import math
 import mathutils
-import time
-from bpy.props import *
+from bpy.types import Operator
 
 
-class OBJECT_OT_get_position(bpy.types.Operator):
+class OBJECT_OT_get_position(Operator):
     bl_label = "From( get position )"
     bl_idname = "world.get_position"
-    bl_description = "Get position from selected sun lamp"
+    bl_description = "Get the position of the sun from the selected lamp location"
 
-    def invoke(self, context, event):
-        sunPosAngle(mode = 'get', val = 'position')
-        return{'FINISHED'}
+    def execute(self, context):
+        warning_message = sunPosAngle(mode="get", val="position")
+        if warning_message:
+            self.report({'WARNING'}, (warning_message))
+            return {'CANCELLED'}
+        else:
+            return{'FINISHED'}
 
 
-class OBJECT_OT_get_angle(bpy.types.Operator):
+class OBJECT_OT_get_angle(Operator):
     bl_label = "From( get angle )"
     bl_idname = "world.get_angle"
-    bl_description = "Get angle from selected sun lamp"
+    bl_description = "Get the position of the sun from selected lamp angle"
 
-    def invoke(self, context, event):
-        sunPosAngle(mode = 'get', val = 'angle')
-        return{'FINISHED'}
+    def execute(self, context):
+        warning_message = sunPosAngle(mode="get", val="angle")
+        if warning_message:
+            self.report({'WARNING'}, (warning_message))
+            return {'CANCELLED'}
+        else:
+            return{'FINISHED'}
 
 
-class OBJECT_OT_update_sun(bpy.types.Operator):
+class OBJECT_OT_update_sun(Operator):
     bl_label = "From( update sun )"
     bl_idname = "world.update_sun"
-    bl_description = "Update position and angle of selected sun lamp according to GUI values"
+    bl_description = "Update the position and angle of selected lamp in 3D View according to GUI values"
 
-    def invoke(self, context, event):
-        sunPosAngle(mode = 'update')
-        return{'FINISHED'}
+    def execute(self, context):
+        warning_message = sunPosAngle(mode="update")
+        if warning_message:
+            self.report({'WARNING'}, (warning_message))
+            return {'CANCELLED'}
+        else:
+            return{'FINISHED'}
 
 
-def sunPosAngle(mode = "get", val = "position"):
+def sunPosAngle(mode="get", val="position"):
+    active_object = bpy.context.active_object
+    scene = bpy.context.scene
+    world = scene.world
 
-    warningMessage = True
-    active_object  = bpy.context.active_object
-    world          = bpy.context.scene.world
-    scene          = bpy.context.scene
+    if active_object and active_object.type == "LAMP":
 
-    if active_object:
+        if mode == "get":
+            # get the position of the sun from selected lamp 'location'
+            if val == "position":
+                location = mathutils.Vector(active_object.location)
 
-        if active_object.type == 'LAMP' and active_object.data.type == 'SUN':  # the second condition may also be bpy.context.scene.lamp_type
-            warningMessage = False
-
-            if mode == 'get':
-                if val == 'position':
-                    location = mathutils.Vector(active_object.location)
-
-                    if location.length:
-                        point = location.normalized()
-                    else:
-                        point = location.copy()
-
-                    world.bg_from = point
-
-                elif val == 'angle':
-                    inv_matrix    = mathutils.Matrix(active_object.matrix_local).copy().inverted()
-                    world.bg_from = (inv_matrix[0][2], inv_matrix[1][2], inv_matrix[2][2])
-
-            elif mode == 'update':
-
-                # get gui from vector and normalize it
-                bg_from = mathutils.Vector(world.bg_from)
-                if bg_from.length:
-                    bg_from.normalize()
-
-                # set location -----------------------------------
-                sundist = mathutils.Vector(active_object.location).length
-                active_object.location = sundist * bg_from
-
-                # compute and set rotation -----------------------
-                # initialize rotation angle
-                ang = 0.0
-
-                # set reference vector for angle to -z
-                vtrack = mathutils.Vector((0, 0, -1))
-
-                # compute sun ray direction from position
-                vray = bg_from.copy()
-                if bg_from.length:
-                    vray.negate()
-                    vray.normalize()
-
-                # get angle between sun ray and reference vector
-                if vtrack.length and vray.length:
-                    ang = vtrack.angle(vray, 0.0)  # 0.0 is the falloff value
+                if location.length:
+                    point = location.normalized()
                 else:
-                    print("Zero length input vector - sun angle set to 0")
+                    point = location.copy()
 
-                # get rotation axis
-                axis = vtrack.cross(vray).normalized()
+                world.bg_from = point
+                return
+            # get the position of the sun from selected lamps 'angle'
+            elif val == "angle":
+                matrix = mathutils.Matrix(active_object.matrix_local).copy()
+                world.bg_from = (matrix[0][2], matrix[1][2], matrix[2][2])
+                return
 
-                # get quaternion representing rotation and get corresponding euler angles
-                quat = mathutils.Quaternion(axis, ang)
-                eul = quat.to_euler()
+        elif mode == "update":
 
-                # update sun rotation and redraw the 3D windows
-                active_object.rotation_euler = eul
+            # get gui from vector and normalize it
+            bg_from = mathutils.Vector(world.bg_from).copy()
+            if bg_from.length:
+                bg_from.normalize()
+
+            # set location
+            sundist = mathutils.Vector(active_object.location).length
+            active_object.location = sundist * bg_from
+
+            # compute and set rotation
+            quat = bg_from.to_track_quat("Z", "Y")
+            eul = quat.to_euler()
+
+            # update sun rotation and redraw the 3D windows
+            active_object.rotation_euler = eul
+            return
 
     else:
-        print('There is no active Sun Lamp object in the scene')
+        return "No selected LAMP object in the scene!"
 
 
-class RENDER_OT_render_view(bpy.types.Operator):
-    bl_label = "Render View"
+def checkSceneLights():
+    scene = bpy.context.scene
+
+    for l in scene.objects:
+        if not l.hide_render and l.is_visible(scene) and l.type == "LAMP":
+            sceneLights = True
+            break
+        else:
+            sceneLights = False
+    return sceneLights
+
+
+class RENDER_OT_render_view(Operator):
+    bl_label = "YafaRay render view"
     bl_idname = "render.render_view"
     bl_description = "Renders using the view in the active 3d viewport"
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
 
-        check_kitems = context.window_manager.keyconfigs.active.keymaps["Screen"]
-        kitems = check_kitems.keymap_items
+        return context.scene.render.engine == 'YAFA_RENDER'
 
-        if not kitems.from_id(bpy.types.YAFA_RENDER.viewRenderKey):
-            bpy.types.YAFA_RENDER.viewRenderKey = kitems.new("RENDER_OT_render_view", 'F12', 'RELEASE', False, False, False, True).id
-
-        return context.scene.render.engine  == 'YAFA_RENDER'
-
-    def draw(self, context):
-
-        split = self.layout.split().column()
-
-        split.label("The selected view is not on perspective mode", icon='ERROR')
-        split.label("or there was no 3d view available to render.")
-
-        split.separator()
-
-        split.label("Rendering 3d views in orthographic mode", icon='INFO')
-        split.label("is not supported yet.")
-
-    def invoke(self, context, event):
-
+    def execute(self, context):
+        view3d = context.region_data
         bpy.types.YAFA_RENDER.useViewToRender = True
-
-        # Get the 3d view unde the mouse cursor
+        sceneLights = checkSceneLights()
+        scene = context.scene
+        # Get the 3d view under the mouse cursor
         # if the region is not a 3d view
         # then search for the first active one
-
-        view3d = context.region_data
-
         if not view3d:
             for area in [a for a in bpy.context.window.screen.areas if a.type == "VIEW_3D"]:
                 view3d = area.spaces.active.region_3d
                 break
 
         if not view3d or view3d.view_perspective == "ORTHO":
-            context.window_manager.invoke_popup(self)
+            self.report({'WARNING'}, ("The selected view is not in perspective mode or there was no 3d view available to render."))
+            bpy.types.YAFA_RENDER.useViewToRender = False
             return {'CANCELLED'}
 
-        bpy.types.YAFA_RENDER.viewMatrix = view3d.view_matrix.copy()
-        bpy.ops.render.render('INVOKE_DEFAULT')
+        elif not sceneLights and scene.intg_light_method == "Bidirectional":
+            self.report({'WARNING'}, ("No lights in the scene and lighting method is bidirectional!"))
+            bpy.types.YAFA_RENDER.useViewToRender = False
+            return {'CANCELLED'}
 
-        return {'FINISHED'}
+        else:
+            bpy.types.YAFA_RENDER.viewMatrix = view3d.view_matrix.copy()
+            bpy.ops.render.render('INVOKE_DEFAULT')
+            return {'FINISHED'}
 
 
-class RENDER_OT_render_animation(bpy.types.Operator):  # own operator for rendering and to check if render animation was invoked
-    bl_label = "Render Active Scene"
+class RENDER_OT_render_animation(Operator):
+    bl_label = "YafaRay render animation"
     bl_idname = "render.render_animation"
     bl_description = "Render active scene"
-    animation = bpy.props.BoolProperty()
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
 
-        check_kitems = context.window_manager.keyconfigs.active.keymaps["Screen"]
-        kitems = check_kitems.keymap_items
+        return context.scene.render.engine == 'YAFA_RENDER'
 
-        if not kitems.from_id(bpy.types.YAFA_RENDER.renderAnimationKey):
-            if self.animation:
-                bpy.types.YAFA_RENDER.renderAnimationKey = kitems.new("RENDER_OT_render_animation", 'F12', 'RELEASE', False, False, True, False).id
-            else:
-                bpy.types.YAFA_RENDER.renderStillKey = kitems.new("RENDER_OT_render_animation", 'F12', 'RELEASE', False, False, False, False).id
+    def execute(self, context):
+        sceneLights = checkSceneLights()
+        scene = context.scene
 
-        return context.scene.render.engine  == 'YAFA_RENDER'
+        if not sceneLights and scene.intg_light_method == "Bidirectional":
+            self.report({'WARNING'}, ("No lights in the scene and lighting method is bidirectional!"))
+            return {'CANCELLED'}
 
-    def invoke(self, context, event):
-
-        if self.animation:
-            bpy.types.YAFA_RENDER.render_Animation = True  # set propertie, so exporter could recognize that render animation was invoked
-            bpy.ops.render.render('INVOKE_DEFAULT', animation = True)
         else:
-            bpy.types.YAFA_RENDER.render_Animation = False  # set propertie, so exporter could recognize that render animation was invoked
+            bpy.ops.render.render('INVOKE_DEFAULT', animation=True)
+            return {'FINISHED'}
+
+
+class RENDER_OT_render_still(Operator):
+    bl_label = "YafaRay render still"
+    bl_idname = "render.render_still"
+    bl_description = "Render active scene"
+
+    @classmethod
+    def poll(cls, context):
+
+        # turn off Blenders color management for correct YafaRay render results
+        # YafaRay has own settings 'Gamma' and 'Gamma input' for linear workflow
+        render = context.scene.render
+        if render.use_color_management and render.engine == 'YAFA_RENDER':
+            render.use_color_management = False
+        return context.scene.render.engine == 'YAFA_RENDER'
+
+    def execute(self, context):
+        sceneLights = checkSceneLights()
+        scene = context.scene
+
+        if not sceneLights and scene.intg_light_method == "Bidirectional":
+            self.report({'WARNING'}, ("No lights in the scene and lighting method is bidirectional!"))
+            return {'CANCELLED'}
+
+        else:
             bpy.ops.render.render('INVOKE_DEFAULT')
+            return {'FINISHED'}
 
-        return {'FINISHED'}
 
-
-class YAF_OT_presets_ior_list(bpy.types.Operator):
-    bl_idname = 'material.set_ior_preset'
-    bl_label = 'IOR presets'
+class YAF_OT_presets_ior_list(Operator):
+    bl_idname = "material.set_ior_preset"
+    bl_label = "IOR presets"
     index = bpy.props.FloatProperty()
     name = bpy.props.StringProperty()
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         yaf_mat = context.material
-        return yaf_mat
+        return yaf_mat.mat_type in {"glass", "rough_glass"}
 
     def execute(self, context):
         yaf_mat = context.material

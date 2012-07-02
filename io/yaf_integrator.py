@@ -1,5 +1,22 @@
-import bpy
-import math
+# ##### BEGIN GPL LICENSE BLOCK #####
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU General Public License
+#  as published by the Free Software Foundation; either version 2
+#  of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software Foundation,
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# ##### END GPL LICENSE BLOCK #####
+
+# <pep8 compliant>
 
 
 class yafIntegrator:
@@ -16,7 +33,7 @@ class yafIntegrator:
         yi.paramsSetBool("transpShad", scene.gs_transp_shad)
 
         light_type = scene.intg_light_method
-        yi.printInfo("Exporting Integrator:" + light_type)
+        yi.printInfo("Exporting Integrator: {0}".format(light_type))
 
         if light_type == "Direct Lighting":
             yi.paramsSetString("type", "directlighting")
@@ -57,25 +74,23 @@ class yafIntegrator:
             yi.paramsSetInt("bounces", scene.intg_bounces)
             yi.paramsSetBool("no_recursive", scene.intg_no_recursion)
 
-            caus_type = scene.intg_caustic_method
-            photons = False
+            #-- test for simplify code
+            causticTypeStr = scene.intg_caustic_method
+            switchCausticType = {
+                'None': 'none',
+                'Path': 'path',
+                'Photon': 'photon',
+                'Path+Photon': 'both',
+            }
 
-            if caus_type == "None":
-                    yi.paramsSetString("caustic_type", "none")
-            elif caus_type == "Path":
-                    yi.paramsSetString("caustic_type", "path")
-            elif caus_type == "Photon":
-                    yi.paramsSetString("caustic_type", "photon")
-                    photons = True
-            elif caus_type == "Path+Photon":
-                    yi.paramsSetString("caustic_type", "both")
-                    photons = True
+            causticType = switchCausticType.get(causticTypeStr)
+            yi.paramsSetString("caustic_type", causticType)
 
-            if photons:
-                    yi.paramsSetInt("photons", scene.intg_photons)
-                    yi.paramsSetInt("caustic_mix", scene.intg_caustic_mix)
-                    yi.paramsSetInt("caustic_depth", scene.intg_caustic_depth)
-                    yi.paramsSetFloat("caustic_radius", scene.intg_caustic_radius)
+            if causticType not in {'none', 'path'}:
+                yi.paramsSetInt("photons", scene.intg_photons)
+                yi.paramsSetInt("caustic_mix", scene.intg_caustic_mix)
+                yi.paramsSetInt("caustic_depth", scene.intg_caustic_depth)
+                yi.paramsSetFloat("caustic_radius", scene.intg_caustic_radius)
 
         elif light_type == "Bidirectional":
             yi.paramsSetString("type", "bidirectional")
@@ -114,9 +129,6 @@ class yafIntegrator:
             yi.paramsSetBool  ("debug",                   scene.intg_pbgi_debug)
             yi.paramsSetBool  ("indirectOnly",            scene.intg_pbgi_indirect)
             yi.paramsSetInt   ("debugTreeDepth",          scene.intg_pbgi_debugTreeDepth)
-            yi.paramsSetBool  ("debugOutputPointsToFile", scene.intg_pbgi_debugPointsToFile)
-            yi.paramsSetString("debug_type",              scene.intg_pbgi_debug_type)
-            yi.paramsSetBool  ("do_load_gi_points",       scene.intg_pbgi_do_load_gi_points)
             yi.paramsSetInt   ("fb_resolution",           scene.intg_pbgi_fb_resolution)
             yi.paramsSetString("fb_type",                 scene.intg_pbgi_fb_type)
             yi.paramsSetString("node_splat_type",         scene.intg_pbgi_node_splat_t)
@@ -132,12 +144,7 @@ class yafIntegrator:
             yi.paramsSetBool  ("do_dict_stats",           scene.intg_pbgi_do_dict_stats)
             yi.paramsSetInt   ("sf_resolution",           scene.intg_pbgi_sf_resolution)
             yi.paramsSetFloat ("disc_scale_factor",       scene.intg_pbgi_disc_scale_factor)
-
-            angle = math.atan(1.0 / (scene.intg_pbgi_fb_resolution))
-            maxSolidAngle = 2.0 * math.pi * (1.0 - math.cos(angle))
-
-            yi.paramsSetFloat("maxSolidAngle", scene.intg_pbgi_maxSolidAngle)
-            # yi.paramsSetFloat("maxSolidAngle", scene.intg_pbgi_maxSolidAngle * maxSolidAngle)
+            yi.paramsSetFloat ("maxSolidAngle",           scene.intg_pbgi_maxSolidAngle)
 
 
         yi.createIntegrator("default")
@@ -151,7 +158,7 @@ class yafIntegrator:
 
         if world:
             vint_type = world.v_int_type
-            yi.printInfo("Exporter: Creating Volume Integrator: \"" + vint_type + "\"...")
+            yi.printInfo("Exporting Volume Integrator: {0}".format(vint_type))
 
             if vint_type == 'Single Scatter':
                 yi.paramsSetString("type", "SingleScatterIntegrator")

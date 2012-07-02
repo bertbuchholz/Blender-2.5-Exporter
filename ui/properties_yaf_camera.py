@@ -1,109 +1,115 @@
+# ##### BEGIN GPL LICENSE BLOCK #####
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU General Public License
+#  as published by the Free Software Foundation; either version 2
+#  of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software Foundation,
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# ##### END GPL LICENSE BLOCK #####
+
+# <pep8 compliant>
+
 import bpy
-#import types and props ---->
-from bpy.props import *
-Camera = bpy.types.Camera
+from bpy.types import Panel
+from bl_ui.properties_data_camera import CameraButtonsPanel
+
+CameraButtonsPanel.COMPAT_ENGINES = {'YAFA_RENDER'}
 
 
-Camera.camera_type = EnumProperty(
-    items = (
-        ("perspective", "Perspective", ""),
-        ("architect", "Architect", ""),
-        ("angular", "Angular", ""),
-        ("orthographic", "Ortho", "")),
-    default = "perspective",
-    name = "Camera Type")
-Camera.angular_angle =      FloatProperty(attr = "angular_angle", max = 180.0, default = 90.0, precision = 3)
-Camera.max_angle     =      FloatProperty(attr = "max_angle", max = 180.0, default = 90.0, precision = 3)
-Camera.mirrored      =      BoolProperty(attr = "mirrored")
-Camera.circular      =      BoolProperty(attr = "circular")
-Camera.use_clipping  =      BoolProperty(default = False)
-Camera.bokeh_type    =      EnumProperty(attr = "bokeh_type",
-    items = (
-        ("disk1", "Disk1", ""),
-        ("disk2", "Disk2", ""),
-        ("triangle", "Triangle", ""),
-        ("square", "Square", ""),
-        ("pentagon", "Pentagon", ""),
-        ("hexagon", "Hexagon", ""),
-        ("ring", "Ring", "")
-    ),
-    default = "disk1",
-    name = "Bokeh Type")
-Camera.aperture =       FloatProperty(attr = "aperture", min = 0.0, max = 20.0, precision = 5)
-Camera.bokeh_rotation = FloatProperty(attr = "bokeh_rotation", min = 0.0, max = 180, precision =3)
-Camera.bokeh_bias =     EnumProperty(attr = "bokeh_bias",
-    items = (
-        ("uniform", "Uniform", ""),
-        ("center", "Center", ""),
-        ("edge", "Edge", "")),
-    default = "uniform",
-    name = "Bokeh Bias")
-Camera.color_data =     FloatVectorProperty(attr = "color_data", description = "Point Info", subtype = "XYZ", step = 10, precision = 3)
-
-
-class YAF_PT_camera(bpy.types.Panel):
-
-    bl_label = 'Camera'
-    bl_space_type = 'PROPERTIES'
-    bl_region_type = 'WINDOW'
-    bl_context = 'data'
-    COMPAT_ENGINES = ['YAFA_RENDER']
-
-    @classmethod
-    def poll(self, context):
-
-        engine = context.scene.render.engine
-        from bl_ui import properties_data_camera
-        return (context.camera and (engine in self.COMPAT_ENGINES))
+class YAF_PT_lens(CameraButtonsPanel, Panel):
+    bl_label = "Lens"
 
     def draw(self, context):
         layout = self.layout
-        col = layout.column()
 
         camera = context.camera
 
-        col.row().prop(context.camera, "camera_type", expand = True, text = "Camera Type")
-        col.separator()
+        layout.prop(camera, "camera_type", expand=True)
 
-        if context.camera.camera_type == 'angular':
-            col.prop(context.camera, "angular_angle", text = "Angle")
-            col.prop(context.camera, "max_angle", text = "Max Angle")
-            col.prop(context.camera, "mirrored", text = "Mirrored")
-            col.prop(context.camera, "circular", text = "Circular")
+        layout.separator()
+
+        if camera.camera_type == 'angular':
+            layout.prop(camera, "angular_angle")
+            layout.prop(camera, "max_angle")
+            layout.prop(camera, "mirrored")
+            layout.prop(camera, "circular")
 
         elif camera.camera_type == 'orthographic':
-            col.prop(context.camera, "ortho_scale", text = "Scale")
+            layout.prop(camera, "ortho_scale")
 
-        elif camera.camera_type in ['perspective', 'architect']:
-            col.prop(context.camera, "lens", text = "Focal Length")
+        elif camera.camera_type in {'perspective', 'architect'}:
+            layout.prop(camera, "lens")
 
-            col.separator()
+            layout.separator()
 
-            col.label("Depth of Field")
-            col.prop(context.camera, "aperture", text = "Aperture")
-            col.prop(context.camera, "dof_object", text = "DOF object")
-            if camera.dof_object == None:
-                col.prop(context.camera, "dof_distance", text = "DOF distance")
+            layout.label("Depth of Field:")
+            layout.prop(camera, "aperture")
+            split = layout.split()
+            split.prop(camera, "dof_object", text="")
+            col = split.column()
+            if camera.dof_object is not None:
+                col.enabled = False
+            col.prop(camera, "dof_distance", text="Distance")
 
-            col.prop(context.camera, "bokeh_type", text = "Bokeh Type")
-            col.prop(context.camera, "bokeh_bias", text = "Bokeh Bias")
-            col.prop(context.camera, "bokeh_rotation", text = "Bokeh Rotation")
+            layout.prop(camera, "bokeh_type")
+            layout.prop(camera, "bokeh_bias")
+            layout.prop(camera, "bokeh_rotation")
+
+        layout.separator()
+        split = layout.split()
+        col = split.column(align=True)
+        col.label(text="Shift:")
+        col.prop(camera, "shift_x", text="X")
+        col.prop(camera, "shift_y", text="Y")
+
+        col = split.column(align=True)
+        col.prop(camera, "use_clipping")
+        sub = col.column()
+        sub.active = camera.use_clipping
+        sub.prop(camera, "clip_start", text="Start")
+        sub.prop(camera, "clip_end", text="End")
 
 
-class YAF_PT_camera_display(bpy.types.Panel):
+class YAF_PT_camera(CameraButtonsPanel, Panel):
+    bl_label = "Camera"
 
-    bl_label = 'Display'
-    bl_space_type = 'PROPERTIES'
-    bl_region_type = 'WINDOW'
-    bl_context = 'data'
-    COMPAT_ENGINES = ['YAFA_RENDER']
+    def draw(self, context):
+        layout = self.layout
 
-    @classmethod
-    def poll(self, context):
+        camera = context.camera
 
-        engine = context.scene.render.engine
-        from bl_ui import properties_data_camera
-        return (context.camera and (engine in self.COMPAT_ENGINES))
+        row = layout.row(align=True)
+
+        row.menu("CAMERA_MT_presets", text=bpy.types.CAMERA_MT_presets.bl_label)
+        row.operator("camera.preset_add", text="", icon="ZOOMIN")
+        row.operator("camera.preset_add", text="", icon="ZOOMOUT").remove_active = True
+
+        layout.label(text="Sensor:")
+
+        split = layout.split()
+
+        col = split.column(align=True)
+        if camera.sensor_fit == 'AUTO':
+            col.prop(camera, "sensor_width", text="Size")
+        else:
+            col.prop(camera, "sensor_width", text="Width")
+            col.prop(camera, "sensor_height", text="Height")
+
+        col = split.column(align=True)
+        col.prop(camera, "sensor_fit", text="")
+
+
+class YAF_PT_camera_display(CameraButtonsPanel, Panel):
+    bl_label = "Display"
 
     def draw(self, context):
         layout = self.layout
@@ -113,26 +119,20 @@ class YAF_PT_camera_display(bpy.types.Panel):
         split = layout.split()
 
         col = split.column()
-        col.prop(camera, "show_limits", text = "Limits")
-        col.prop(camera, "show_title_safe", text = "Title Safe")
-        col.prop(camera, "show_name", text = "Name")
-        col.separator()
-        col.separator()
-        col.label(text = "Clipping:")
-        col.prop(context.camera, "use_clipping", text = "Use Clipping in render")
+        col.prop(camera, "show_limits", text="Limits")
+        col.prop(camera, "show_title_safe", text="Title Safe")
+        col.prop(camera, "show_sensor", text="Sensor")
+        col.prop(camera, "show_name", text="Name")
 
         col = split.column()
-        col.prop(camera, "show_passepartout", text = "Passepartout")
+        col.prop_menu_enum(camera, "show_guide")
+        col.prop(camera, "draw_size", text="Size")
+        col.prop(camera, "show_passepartout", text="Passepartout")
         sub = col.column()
         sub.active = camera.show_passepartout
-        sub.prop(camera, "passepartout_alpha", text = "Alpha", slider = True)
-        col.label(text = "Camera size:")
-        col.prop(camera, "draw_size", text = "")
-        col.separator()
-        col.separator()
-        clip = col.column(align = True)
-        clip.active = camera.use_clipping
-        clip.prop(context.camera, "clip_start", text = "Start")
-        clip.prop(context.camera, "clip_end", text = "End")
-        layout.separator()
-        layout.prop_menu_enum(camera, "show_guide")
+        sub.prop(camera, "passepartout_alpha", text="Alpha", slider=True)
+
+
+if __name__ == "__main__":  # only for live edit.
+    import bpy
+    bpy.utils.register_module(__name__)

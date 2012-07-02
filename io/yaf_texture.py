@@ -1,7 +1,26 @@
-import os
+# ##### BEGIN GPL LICENSE BLOCK #####
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU General Public License
+#  as published by the Free Software Foundation; either version 2
+#  of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software Foundation,
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# ##### END GPL LICENSE BLOCK #####
+
+# <pep8 compliant>
+
 import bpy
-import re
-from  math import *
+import os
+from bpy.path import abspath, clean_name
 
 
 def noise2string(ntype):
@@ -37,8 +56,8 @@ class yafTexture:
 
         textureConfigured = False
 
-        if tex.type == 'BLEND':
-            yi.printInfo("Exporter: Creating Texture: \"" + name + "\" type BLEND")
+        if tex.yaf_tex_type == 'BLEND':
+            yi.printInfo("Exporter: Creating Texture: '{0}' type {1}".format(name, tex.yaf_tex_type))
             yi.paramsSetString("type", "blend")
 
             switchBlendType = {
@@ -56,8 +75,8 @@ class yafTexture:
 
             textureConfigured = True
 
-        elif tex.type == 'CLOUDS':
-            yi.printInfo("Exporter: Creating Texture: \"" + name + "\" type CLOUDS")
+        elif tex.yaf_tex_type == 'CLOUDS':
+            yi.printInfo("Exporter: Creating Texture: '{0}' type {1}".format(name, tex.yaf_tex_type))
             yi.paramsSetString("type", "clouds")
 
             noise_size = tex.noise_scale
@@ -73,18 +92,19 @@ class yafTexture:
 
             yi.paramsSetBool("hard", hard)
             yi.paramsSetInt("depth", tex.noise_depth)
+            yi.paramsSetString("noise_type", noise2string(tex.noise_basis))
 
             textureConfigured = True
 
-        elif tex.type == 'WOOD':
-            yi.printInfo("Exporter: Creating Texture: \"" + name + "\" type WOOD")
+        elif tex.yaf_tex_type == 'WOOD':
+            yi.printInfo("Exporter: Creating Texture: '{0}' type {1}".format(name, tex.yaf_tex_type))
             yi.paramsSetString("type", "wood")
 
             yi.paramsSetInt("depth", 0)
 
-            turb       = 0.0
+            turb = 0.0
             noise_size = 0.25
-            hard       = True
+            hard = True
 
             if tex.wood_type == 'BANDNOISE' or tex.wood_type == 'RINGNOISE':
 
@@ -121,8 +141,8 @@ class yafTexture:
 
             textureConfigured = True
 
-        elif tex.type == 'MARBLE':
-            yi.printInfo("Exporter: Creating Texture: \"" + name + "\" type MARBLE")
+        elif tex.yaf_tex_type == 'MARBLE':
+            yi.printInfo("Exporter: Creating Texture: '{0}' type {1}".format(name, tex.yaf_tex_type))
             yi.paramsSetString("type", "marble")
 
             yi.paramsSetInt("depth", tex.noise_depth)
@@ -162,15 +182,15 @@ class yafTexture:
 
             textureConfigured = True
 
-        elif tex.type == 'VORONOI':
-            yi.printInfo("Exporter: Creating Texture: \"" + name + "\" type VORONOI")
+        elif tex.yaf_tex_type == 'VORONOI':
+            yi.printInfo("Exporter: Creating Texture: '{0}' type {1}".format(name, tex.yaf_tex_type))
             yi.paramsSetString("type", "voronoi")
 
             if tex.color_mode == 'POSITION':
                 ts = "col1"
-            elif tex.color_mode  == 'POSITION_OUTLINE':
+            elif tex.color_mode == 'POSITION_OUTLINE':
                 ts = "col2"
-            elif tex.color_mode  == 'POSITION_OUTLINE_INTENSITY':
+            elif tex.color_mode == 'POSITION_OUTLINE_INTENSITY':
                 ts = "col3"
             else:
                 ts = "int"
@@ -204,8 +224,8 @@ class yafTexture:
 
             textureConfigured = True
 
-        elif tex.type == 'MUSGRAVE':
-            yi.printInfo("Exporter: Creating Texture: \"" + name + "\" type MUSGRAVE")
+        elif tex.yaf_tex_type == 'MUSGRAVE':
+            yi.printInfo("Exporter: Creating Texture: '{0}' type {1}".format(name, tex.yaf_tex_type))
             yi.paramsSetString("type", "musgrave")
 
             switchMusgraveType = {
@@ -227,13 +247,14 @@ class yafTexture:
             if  noise_size > 0:
                 noise_size = 1.0 / noise_size
             yi.paramsSetFloat("size", noise_size)
-
-            yi.paramsSetFloat("intensity", tex.offset)
+            yi.paramsSetFloat("offset", tex.offset)
+            yi.paramsSetFloat("intensity", tex.noise_intensity)
+            yi.paramsSetFloat("gain", tex.gain)
 
             textureConfigured = True
 
-        elif tex.type == 'DISTORTED_NOISE':
-            yi.printInfo("Exporter: Creating Texture: \"" + name + "\" type DISTORTED NOISE")
+        elif tex.yaf_tex_type == 'DISTORTED_NOISE':
+            yi.printInfo("Exporter: Creating Texture: '{0}' type {1}".format(name, tex.yaf_tex_type))
             yi.paramsSetString("type", "distorted_noise")
 
             yi.paramsSetFloat("distort", tex.distortion)
@@ -248,28 +269,52 @@ class yafTexture:
 
             textureConfigured = True
 
-        elif tex.type == 'IMAGE' and tex.image:
-            image_tex = tex.image
-            image_file = bpy.path.abspath(image_tex.filepath)
-            image_file = os.path.realpath(image_file)
-            image_file = os.path.normpath(image_file)
+        elif tex.yaf_tex_type == 'IMAGE' and tex.image and tex.image.source in {'FILE', 'GENERATED'}:
 
-            if image_file != "" and not os.path.exists(image_file):
-                yi.printInfo("Exporter: No valid texture image supplied.")
-                return False
+            filename = os.path.splitext(os.path.basename(bpy.data.filepath))[0]
 
-            yi.printInfo("Exporter: Creating Texture: \"" + name + "\" type IMAGE: " + image_file)
+            if not any(filename):
+                filename = "untitled"
+                save_dir = os.path.expanduser("~")
+            else:
+                save_dir = "//"
+
+            filename = clean_name(filename)
+            fileformat = scene.render.image_settings.file_format.lower()
+            extract_path = os.path.join(filename, "{:05d}".format(scene.frame_current))
+
+            if tex.image.source == 'GENERATED':
+                image_tex = "yaf_baked_image_{0}.{1}".format(clean_name(tex.name), fileformat)
+                image_tex = os.path.join(save_dir, extract_path, image_tex)
+                image_tex = abspath(image_tex)
+                tex.image.save_render(image_tex, scene)
+            if tex.image.source == 'FILE':
+                if tex.image.packed_file:
+                    image_tex = "yaf_extracted_image_{0}.{1}".format(clean_name(tex.name), fileformat)
+                    image_tex = os.path.join(save_dir, extract_path, image_tex)
+                    image_tex = abspath(image_tex)
+                    tex.image.save_render(image_tex, scene)
+                else:
+                    if tex.image.library is not None:
+                        image_tex = abspath(tex.image.filepath, library=tex.image.library)
+                    else:
+                        image_tex = abspath(tex.image.filepath)
+                    if not os.path.exists(image_tex):
+                        yi.printError("Exporter: Image texture {0} not found on: {1}".format(tex.name, image_tex))
+                        return False
+
+            image_tex = os.path.realpath(image_tex)
+            image_tex = os.path.normpath(image_tex)
+
+            yi.printInfo("Exporter: Creating Texture: '{0}' type {1}: {2}".format(name, tex.yaf_tex_type, image_tex))
 
             yi.paramsSetString("type", "image")
-            yi.paramsSetString("filename", image_file)
+            yi.paramsSetString("filename", image_tex)
 
             yi.paramsSetBool("use_alpha", tex.use_alpha)
             yi.paramsSetBool("calc_alpha", tex.use_calculate_alpha)
             yi.paramsSetBool("normalmap", tex.yaf_is_normal_map)
             yi.paramsSetFloat("gamma", scene.gs_gamma_input)
-            #  yi.paramsSetFloat("exposure_adjust", tex.yaf_tex_expadj)  # experimental?
-            if not tex.yaf_tex_interpolate == 'bilinear':  # bilinear is set by default
-                yi.paramsSetString("interpolate", tex.yaf_tex_interpolate)
 
             # repeat
             repeat_x = 1

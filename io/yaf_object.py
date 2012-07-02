@@ -1,5 +1,26 @@
+# ##### BEGIN GPL LICENSE BLOCK #####
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU General Public License
+#  as published by the Free Software Foundation; either version 2
+#  of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software Foundation,
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# ##### END GPL LICENSE BLOCK #####
+
+# <pep8 compliant>
+
 import bpy
 import time
+import math
 import mathutils
 import yafrayinterface
 
@@ -7,7 +28,7 @@ import yafrayinterface
 def multiplyMatrix4x4Vector4(matrix, vector):
     result = mathutils.Vector((0.0, 0.0, 0.0, 0.0))
     for i in range(4):
-        result[i] = matrix[i] * vector
+        result[i] = vector * matrix[i]  # use reverse vector multiply order, API changed with rev. 38674
 
     return result
 
@@ -37,8 +58,7 @@ class yafObject(object):
             # at 0,0,0 looking towards 0,0,1 (y axis being up)
 
             m = bpy.types.YAFA_RENDER.viewMatrix
-
-            m.transpose()
+            # m.transpose() --> not needed anymore: matrix indexing changed with Blender rev.42816
             inv = m.inverted()
 
             pos = multiplyMatrix4x4Vector4(inv, mathutils.Vector((0, 0, 0, 1)))
@@ -49,10 +69,13 @@ class yafObject(object):
             up = aboveCam
 
         else:
-            matrix = camera.matrix_world  # get cam worldspace transformation matrix, e.g. if cam is parented local does not work
-            pos = matrix[3]
-            dir = matrix[2]
-            up = pos + matrix[1]
+            # get cam worldspace transformation matrix, e.g. if cam is parented matrix_local does not work
+            matrix = camera.matrix_world.copy()
+            # matrix indexing (row, colums) changed in Blender rev.42816, for explanation see also:
+            # http://wiki.blender.org/index.php/User:TrumanBlending/Matrix_Indexing
+            pos = matrix.col[3]
+            dir = matrix.col[2]
+            up = pos + matrix.col[1]
 
         to = pos - dir
 
@@ -72,24 +95,36 @@ class yafObject(object):
 
             yi.paramsSetString("type", camType)
 
-            if (camera.use_clipping):
+            if camera.use_clipping:
                 yi.paramsSetFloat("nearClip", camera.clip_start)
                 yi.paramsSetFloat("farClip", camera.clip_end)
 
             if camType == "orthographic":
                 yi.paramsSetFloat("scale", camera.ortho_scale)
 
-            elif camType in ["perspective", "architect"]:
-                f_aspect = 1.0
-                if x < y:
+            elif camType in {"perspective", "architect"}:
+                # Blenders GSOC 2011 project "tomato branch" merged into trunk.
+                # Check for sensor settings and use them in yafaray exporter also.
+                if camera.sensor_fit == 'AUTO':
+                    horizontal_fit = (x > y)
+                    sensor_size = camera.sensor_width
+                elif camera.sensor_fit == 'HORIZONTAL':
+                    horizontal_fit = True
+                    sensor_size = camera.sensor_width
+                else:
+                    horizontal_fit = False
+                    sensor_size = camera.sensor_height
+
+                if horizontal_fit:
+                    f_aspect = 1.0
+                else:
                     f_aspect = x / y
 
-                yi.paramsSetFloat("focal", camera.lens / (f_aspect * 32.0))
+                yi.paramsSetFloat("focal", camera.lens / (f_aspect * sensor_size))
 
                 # DOF params, only valid for real camera
                 # use DOF object distance if present or fixed DOF
-
-                if camera.dof_object:
+                if camera.dof_object is not None:
                     # use DOF object distance
                     dist = (pos.xyz - camera.dof_object.location.xyz).length
                     dof_distance = dist
@@ -142,66 +177,10 @@ class yafObject(object):
 
         return ret
 
-    def writeObjects(self):
-
-        baseIds = {}
-        dupBaseIds = {}
-        # export only visible objects
-        for obj in [o for o in self.scene.objects if not o.hide_render and o.is_visible(self.scene) and (o.type == 'MESH' or o.type == 'SURFACE' or o.type == 'CURVE' or o.type == 'FONT')]:
-            if obj.is_duplicator:  # Exporting dupliObjects as instances
-
-                self.yi.printInfo("Processing duplis for: " + obj.name)
-                obj.dupli_list_create(self.scene)
-
-                for obj_dupli in obj.dupli_list:
-
-                    if obj_dupli.object.name not in dupBaseIds:
-                        dupBaseIds[obj_dupli.object.name] = self.writeInstanceBase(obj_dupli.object)
-
-                    self.writeInstance(dupBaseIds[obj_dupli.object.name], obj_dupli.matrix, obj_dupli.object.name)
-
-                if obj.dupli_list:
-                    obj.dupli_list_clear()
-            ##################################################################################################################################
-            #  Disable export of instanced objects, problems with "orco" mapped textures, transparent shadows (crash) and Material preview!! #
-            #  has to be solved first, then enable again...                                                                                  #
-            ##################################################################################################################################
-            
-            #  elif obj.data.users > 1:  # Exporting objects with shared mesh data blocks as instances
-
-                #  self.yi.printInfo("Processing shared mesh data node object: " + obj.name)
-                #  if obj.data.name not in baseIds:
-                    #  baseIds[obj.data.name] = self.writeInstanceBase(obj)
-
-                #  if obj.name not in dupBaseIds:
-                    #  self.writeInstance(baseIds[obj.data.name], obj.matrix_world, obj.data.name)
-
-            else:
-                if obj.data.name not in baseIds and obj.name not in dupBaseIds:
-                    self.writeObject(obj)
-
-        # checking for empty objects with duplis on them also...
-        for empt in [e for e in self.scene.objects if not e.hide_render and e.is_visible(self.scene) and e.type == 'EMPTY']:
-
-            if empt.is_duplicator:
-                self.yi.printInfo("Processing duplis for: " + empt.name)
-
-                empt.dupli_list_create(self.scene)
-
-                for empt_dupli in empt.dupli_list:
-
-                    if empt_dupli.object.name not in dupBaseIds:
-                        dupBaseIds[empt_dupli.object.name] = self.writeInstanceBase(empt_dupli.object)
-
-                    self.writeInstance(dupBaseIds[empt_dupli.object.name], empt_dupli.matrix, empt_dupli.object.name)
-
-                if empt.dupli_list:
-                    empt.dupli_list_clear()
-
-    def writeObject(self, obj, matrix = None):
+    def writeObject(self, obj, matrix=None):
 
         if not matrix:
-            matrix = obj.matrix_world
+            matrix = obj.matrix_world.copy()
 
         if obj.vol_enable:  # Volume region
             self.writeVolumeObject(obj, matrix)
@@ -212,8 +191,8 @@ class yafObject(object):
         elif obj.bgp_enable:  # BGPortal Light
             self.writeBGPortal(obj, matrix)
 
-        elif obj.particle_systems:  # Particle system
-            self.writeParticlesObject(obj, matrix)
+        elif obj.particle_systems:  # Particle Hair system
+            self.writeParticleStrands(obj, matrix)
 
         else:  # The rest of the object types
             self.writeMesh(obj, matrix)
@@ -223,7 +202,7 @@ class yafObject(object):
         # Generate unique object ID
         ID = self.yi.getNextFreeID()
 
-        self.yi.printInfo("Exporting Base Mesh: " + obj.name + " with ID " + str(ID))
+        self.yi.printInfo("Exporting Base Mesh: {0} with ID: {1:d}".format(obj.name, ID))
 
         obType = 512  # Create this geometry object as a base object for instances
 
@@ -233,10 +212,10 @@ class yafObject(object):
 
     def writeInstance(self, oID, obj2WorldMatrix, name):
 
-        self.yi.printInfo("Exporting Instance of " + name + " [ID = " + str(oID) + "]")
+        self.yi.printInfo("Exporting Instance of {0} [ID = {1:d}]".format(name, oID))
 
         mat4 = obj2WorldMatrix.to_4x4()
-        mat4.transpose()
+        # mat4.transpose() --> not needed anymore: matrix indexing changed with Blender rev.42816
 
         o2w = self.get4x4Matrix(mat4)
 
@@ -246,7 +225,7 @@ class yafObject(object):
 
     def writeMesh(self, obj, matrix):
 
-        self.yi.printInfo("Exporting Mesh: " + obj.name)
+        self.yi.printInfo("Exporting Mesh: {0}".format(obj.name))
 
         # Generate unique object ID
         ID = self.yi.getNextFreeID()
@@ -255,7 +234,7 @@ class yafObject(object):
 
     def writeBGPortal(self, obj, matrix):
 
-        self.yi.printInfo("Exporting Background Portal Light: " + obj.name)
+        self.yi.printInfo("Exporting Background Portal Light: {0}".format(obj.name))
 
         # Generate unique object ID
         ID = self.yi.getNextFreeID()
@@ -276,7 +255,7 @@ class yafObject(object):
 
     def writeMeshLight(self, obj, matrix):
 
-        self.yi.printInfo("Exporting Meshlight: " + obj.name)
+        self.yi.printInfo("Exporting Meshlight: {0}".format(obj.name))
 
         # Generate unique object ID
         ID = self.yi.getNextFreeID()
@@ -309,18 +288,11 @@ class yafObject(object):
 
     def writeVolumeObject(self, obj, matrix):
 
-        self.yi.printInfo("Exporting Volume Region: " + obj.name)
+        self.yi.printInfo("Exporting Volume Region: {0}".format(obj.name))
 
         yi = self.yi
-        me = obj.data
-        me_materials = me.materials
-
-        mesh = obj.to_mesh(self.scene, True, 'RENDER')
-
-        if matrix:
-            mesh.transform(matrix)
-        else:
-            return
+        # me = obj.data  /* UNUSED */
+        # me_materials = me.materials  /* UNUSED */
 
         yi.paramsClearAll()
 
@@ -333,12 +305,12 @@ class yafObject(object):
             yi.paramsSetString("type", "UniformVolume")
 
         elif obj.vol_region == 'Noise Volume':
-            if not obj.data.materials[0]:
-                yi.printError("Volume object (" + obj.name + ") is missing the material")
-            elif not obj.data.materials[0].texture_slots[0].texture:
-                yi.printError("Volume object's material (" + obj.name + ") is missing the noise texture")
+            if not obj.active_material:
+                yi.printError("Volume object ({0}) is missing the materials".format(obj.name))
+            elif not obj.active_material.active_texture:
+                yi.printError("Volume object's material ({0}) is missing the noise texture".format(obj.name))
             else:
-                texture = obj.data.materials[0].texture_slots[0].texture
+                texture = obj.active_material.active_texture
 
                 yi.paramsSetString("type", "NoiseVolume")
                 yi.paramsSetFloat("sharpness", obj.vol_sharpness)
@@ -349,54 +321,58 @@ class yafObject(object):
         elif obj.vol_region == 'Grid Volume':
             yi.paramsSetString("type", "GridVolume")
 
-
         yi.paramsSetFloat("sigma_a", obj.vol_absorp)
         yi.paramsSetFloat("sigma_s", obj.vol_scatter)
         yi.paramsSetInt("attgridScale", self.scene.world.v_int_attgridres)
 
-        min = [1e10, 1e10, 1e10]
-        max = [-1e10, -1e10, -1e10]
-        vertLoc = []
-        for v in mesh.vertices:
-            vertLoc.append(v.co[0])
-            vertLoc.append(v.co[1])
-            vertLoc.append(v.co[2])
+        # Calculate BoundingBox: get the low corner (minx, miny, minz)
+        # and the up corner (maxx, maxy, maxz) then apply object scale,
+        # also clamp the values to min: -1e10 and max: 1e10
 
-            if vertLoc[0] < min[0]:
-                min[0] = vertLoc[0]
-            if vertLoc[1] < min[1]:
-                min[1] = vertLoc[1]
-            if vertLoc[2] < min[2]:
-                min[2] = vertLoc[2]
-            if vertLoc[0] > max[0]:
-                max[0] = vertLoc[0]
-            if vertLoc[1] > max[1]:
-                max[1] = vertLoc[1]
-            if vertLoc[2] > max[2]:
-                max[2] = vertLoc[2]
+        mesh = obj.to_mesh(self.scene, True, 'RENDER')
+        mesh.transform(matrix)
 
-            vertLoc = []
+        vec = [j for v in mesh.vertices for j in v.co]
 
-        yi.paramsSetFloat("minX", min[0])
-        yi.paramsSetFloat("minY", min[1])
-        yi.paramsSetFloat("minZ", min[2])
-        yi.paramsSetFloat("maxX", max[0])
-        yi.paramsSetFloat("maxY", max[1])
-        yi.paramsSetFloat("maxZ", max[2])
+        yi.paramsSetFloat("minX", max(min(vec[0::3]), -1e10))
+        yi.paramsSetFloat("minY", max(min(vec[1::3]), -1e10))
+        yi.paramsSetFloat("minZ", max(min(vec[2::3]), -1e10))
+        yi.paramsSetFloat("maxX", min(max(vec[0::3]), 1e10))
+        yi.paramsSetFloat("maxY", min(max(vec[1::3]), 1e10))
+        yi.paramsSetFloat("maxZ", min(max(vec[2::3]), 1e10))
 
-        yi.createVolumeRegion("VR_" + obj.name + "." + str(obj.__hash__()))
+        yi.createVolumeRegion("VR.{0}-{1}".format(obj.name, str(obj.__hash__())))
+        bpy.data.meshes.remove(mesh)
 
-    def writeGeometry(self, ID, obj, matrix, obType = 0, oMat = None):
+    def writeGeometry(self, ID, obj, matrix, obType=0, oMat=None):
 
         mesh = obj.to_mesh(self.scene, True, 'RENDER')
         isSmooth = False
         hasOrco = False
-        # TODO: this may not be the best way to check for uv maps
-        hasUV = (len(mesh.uv_textures) > 0)
+        # test for UV Map after BMesh API changes
+        uv_texture = mesh.tessface_uv_textures if 'tessface_uv_textures' in dir(mesh) else mesh.uv_textures
+        # test for faces after BMesh API changes
+        face_attr = 'faces' if 'faces' in dir(mesh) else 'tessfaces'
+        hasUV = len(uv_texture) > 0  # check for UV's
+
+        if face_attr == 'tessfaces':
+            if not mesh.tessfaces and mesh.polygons:
+                # BMesh API update, check for tessellated faces, if needed calculate them...
+                mesh.update(calc_tessface=True)
+
+            if not mesh.tessfaces:
+                # if there are no faces, no need to write geometry, remove mesh data then...
+                bpy.data.meshes.remove(mesh)
+                return
+        else:
+            if not mesh.faces:
+                # if there are no faces, no need to write geometry, remove mesh data then...
+                bpy.data.meshes.remove(mesh)
+                return
 
         # Check if the object has an orco mapped texture
-        for mat in [mmat for mmat in mesh.materials if mmat]:
-            for m in [mtex for mtex in mat.texture_slots if mtex]:
+        for mat in [mmat for mmat in mesh.materials if mmat is not None]:
+            for m in [mtex for mtex in mat.texture_slots if mtex is not None]:
                 if m.texture_coords == 'ORCO':
                     hasOrco = True
                     break
@@ -427,7 +403,7 @@ class yafObject(object):
                 ov.append([normCo[0], normCo[1], normCo[2]])
 
         # Transform the mesh after orcos have been stored and only if matrix exists
-        if matrix:
+        if matrix is not None:
             mesh.transform(matrix)
 
         self.yi.paramsClearAll()
@@ -438,7 +414,7 @@ class yafObject(object):
         if not use_for_pbgi:
             print("No PBGI for obj: ", obj.name)
 
-        self.yi.startTriMesh(ID, len(mesh.vertices), len(mesh.faces), hasOrco, hasUV, obType)
+        self.yi.startTriMesh(ID, len(mesh.vertices), len(getattr(mesh, face_attr)), hasOrco, hasUV, obType)
 
         for ind, v in enumerate(mesh.vertices):
             if hasOrco:
@@ -446,7 +422,7 @@ class yafObject(object):
             else:
                 self.yi.addVertex(v.co[0], v.co[1], v.co[2])
 
-        for index, f in enumerate(mesh.faces):
+        for index, f in enumerate(getattr(mesh, face_attr)):
             if f.use_smooth:
                 isSmooth = True
 
@@ -457,7 +433,7 @@ class yafObject(object):
 
             co = None
             if hasUV:
-                co = mesh.uv_textures.active.data[index]
+                co = uv_texture.active.data[index]
                 uv0 = self.yi.addUV(co.uv1[0], co.uv1[1])
                 uv1 = self.yi.addUV(co.uv2[0], co.uv2[1])
                 uv2 = self.yi.addUV(co.uv3[0], co.uv3[1])
@@ -468,20 +444,18 @@ class yafObject(object):
             if len(f.vertices) == 4:
                 if hasUV:
                     uv3 = self.yi.addUV(co.uv4[0], co.uv4[1])
-                    self.yi.addTriangle(f.vertices[2], f.vertices[3], f.vertices[0], uv2, uv3, uv0, ymaterial)
+                    self.yi.addTriangle(f.vertices[0], f.vertices[2], f.vertices[3], uv0, uv2, uv3, ymaterial)
                 else:
-                    self.yi.addTriangle(f.vertices[2], f.vertices[3], f.vertices[0], ymaterial)
+                    self.yi.addTriangle(f.vertices[0], f.vertices[2], f.vertices[3], ymaterial)
 
         self.yi.endTriMesh()
 
-        if isSmooth == True:
-            if mesh.use_auto_smooth:
-                self.yi.smoothMesh(0, mesh.auto_smooth_angle)
-            else:
-                if obj.type == 'FONT':  # getting nicer result with smooth angle 60 degr. for text objects
-                    self.yi.smoothMesh(0, 60)
-                else:
-                    self.yi.smoothMesh(0, 181)
+        if isSmooth and mesh.use_auto_smooth:
+            self.yi.smoothMesh(0, math.degrees(mesh.auto_smooth_angle))
+        elif isSmooth and obj.type == 'FONT':  # getting nicer result with smooth angle 60 degr. for text objects
+            self.yi.smoothMesh(0, 60)
+        elif isSmooth:
+            self.yi.smoothMesh(0, 181)
 
         self.yi.endGeometry()
 
@@ -491,74 +465,77 @@ class yafObject(object):
 
         ymaterial = self.materialMap["default"]
 
-        if not self.scene.gs_clay_render:
-            if len(meshMats) and meshMats[matIndex]:
-                mat = meshMats[matIndex]
-
-                if mat in self.materialMap:
-                    ymaterial = self.materialMap[mat]
-            else:
-                for mat_slot in matSlots:
-                    if mat_slot.material in self.materialMap:
-                        ymaterial = self.materialMap[mat_slot.material]
+        if self.scene.gs_clay_render:
+            ymaterial = self.materialMap["clay"]
+        elif len(meshMats) and meshMats[matIndex]:
+            mat = meshMats[matIndex]
+            if mat in self.materialMap:
+                ymaterial = self.materialMap[mat]
+        else:
+            for mat_slots in [ms for ms in matSlots if ms.material in self.materialMap]:
+                ymaterial = self.materialMap[mat_slots.material]
 
         return ymaterial
 
-    def writeParticlesObject(self, object, matrix):
+    def writeParticleStrands(self, object, matrix):
 
         yi = self.yi
         renderEmitter = False
         if hasattr(object, 'particle_systems') == False:
             return
 
+        # Check for hair particles:
         for pSys in object.particle_systems:
+            for mod in [m for m in object.modifiers if (m is not None) and (m.type == 'PARTICLE_SYSTEM')]:
+                if (pSys.settings.render_type == 'PATH') and mod.show_render and (pSys.name == mod.particle_system.name):
+                    yi.printInfo("Exporter: Creating Hair Particle System {!r}".format(pSys.name))
+                    tstart = time.time()
+                    # TODO: clay particles uses at least materials thikness?
+                    if object.active_material is not None:
+                        pmaterial = object.active_material
 
-            if pSys.settings.render_type == 'PATH':  # Export Hair particles
-                yi.printInfo("Exporter: Creating Particle System \"" + pSys.name + "\"")
-                tstart = time.time()
-                # TODO: clay particles uses at least materials thikness?
-                if object.active_material is not None:
-                    pmaterial = object.active_material
+                        if pmaterial.strand.use_blender_units:
+                            strandStart = pmaterial.strand.root_size
+                            strandEnd = pmaterial.strand.tip_size
+                            strandShape = pmaterial.strand.shape
+                        else:  # Blender unit conversion
+                            strandStart = pmaterial.strand.root_size / 100
+                            strandEnd = pmaterial.strand.tip_size / 100
+                            strandShape = pmaterial.strand.shape
+                    else:
+                        pmaterial = "default"  # No material assigned in blender, use default one
+                        strandStart = 0.01
+                        strandEnd = 0.01
+                        strandShape = 0.0
 
-                    if pmaterial.strand.use_blender_units:
-                        strandStart = pmaterial.strand.root_size
-                        strandEnd   = pmaterial.strand.tip_size
-                        strandShape = pmaterial.strand.shape
-                    else:  # Blender unit conversion
-                        strandStart = pmaterial.strand.root_size / 100
-                        strandEnd   = pmaterial.strand.tip_size / 100
-                        strandShape = pmaterial.strand.shape
+                    for particle in pSys.particles:
+                        if particle.is_exist and particle.is_visible:
+                            p = True
+                        else:
+                            p = False
+                        CID = yi.getNextFreeID()
+                        yi.paramsClearAll()
+                        yi.startGeometry()
+                        yi.startCurveMesh(CID, p)
+                        for location in particle.hair_keys:
+                            vertex = matrix * location.co  # use reverse vector multiply order, API changed with rev. 38674
+                            yi.addVertex(vertex[0], vertex[1], vertex[2])
+                        #this section will be changed after the material settings been exported
+                        if self.materialMap[pmaterial]:
+                            yi.endCurveMesh(self.materialMap[pmaterial], strandStart, strandEnd, strandShape)
+                        else:
+                            yi.endCurveMesh(self.materialMap["default"], strandStart, strandEnd, strandShape)
+                    # TODO: keep object smooth
+                    #yi.smoothMesh(0, 60.0)
+                        yi.endGeometry()
+                    yi.printInfo("Exporter: Particle creation time: {0:.3f}".format(time.time() - tstart))
+
+                    if pSys.settings.use_render_emitter:
+                        renderEmitter = True
                 else:
-                    pmaterial = "default"  # No material assigned in blender, use default one
-                    strandStart = 0.01
-                    strandEnd = 0.01
-                    strandShape = 0.0
+                    self.writeMesh(object, matrix)
 
-                for particle in pSys.particles:
-                    if particle.is_exist and particle.is_visible:
-                        p = True
-                    else:
-                        p = False
-                    CID = yi.getNextFreeID()
-                    yi.paramsClearAll()
-                    yi.startGeometry()
-                    yi.startCurveMesh(CID, p)
-                    for location in particle.hair_keys:
-                        vertex = location.co * matrix
-                        yi.addVertex(vertex[0], vertex[1], vertex[2])
-                    #this section will be changed after the material settings been exported
-                    if self.materialMap[pmaterial]:
-                        yi.endCurveMesh(self.materialMap[pmaterial], strandStart, strandEnd, strandShape)
-                    else:
-                        yi.endCurveMesh(self.materialMap["default"], strandStart, strandEnd, strandShape)
-                # TODO: keep object smooth
-                #yi.smoothMesh(0, 60.0)
-                    yi.endGeometry()
-                yi.printInfo("Exporter: Particle creation time: " + str(time.time() - tstart))
-
-                if (pSys.settings.use_render_emitter):
-                    renderEmitter = True
         # We only need to render emitter object once
         if renderEmitter:
-            ymat = self.materialMap["default"]
+            # ymat = self.materialMap["default"]  /* UNUSED */
             self.writeMesh(object, matrix)

@@ -1,9 +1,27 @@
-import bpy
+# ##### BEGIN GPL LICENSE BLOCK #####
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU General Public License
+#  as published by the Free Software Foundation; either version 2
+#  of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software Foundation,
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# ##### END GPL LICENSE BLOCK #####
+
+# <pep8 compliant>
+
 import os
-import math
-from math import *
-from bpy.path import *
-import mathutils
+from mathutils import Vector
+from math import degrees, pi, sin, cos
+from bpy.path import abspath
 
 
 class yafLight:
@@ -13,11 +31,9 @@ class yafLight:
         self.preview = preview
 
     def makeSphere(self, nu, nv, x, y, z, rad, mat):
-
         yi = self.yi
 
         # get next free id from interface
-
         ID = yi.getNextFreeID()
 
         yi.startGeometry()
@@ -49,20 +65,22 @@ class yafLight:
 
         return ID
 
-    def createLight(self, yi, lamp_object, matrix = None):
+    def createLight(self, yi, lamp_object, matrix=None):
 
         lamp = lamp_object.data
         name = lamp_object.name
 
-        if matrix == None:
-            matrix = lamp_object.matrix_world
-        pos = matrix[3]
-        dir = matrix[2]
-        up = matrix[1]
+        if matrix is None:
+            matrix = lamp_object.matrix_world.copy()
+        # matrix indexing (row, colums) changed in Blender rev.42816, for explanation see also:
+        # http://wiki.blender.org/index.php/User:TrumanBlending/Matrix_Indexing
+        pos = matrix.col[3]
+        dir = matrix.col[2]
+        # up = matrix[1]  /* UNUSED */
         to = pos - dir
 
         lampType = lamp.lamp_type
-        power = lamp.energy
+        power = lamp.yaf_energy
         color = lamp.color
 
         if self.preview:
@@ -77,33 +95,29 @@ class yafLight:
                 to = (-0.0062182024121284485, 0.6771485209465027, 1.8015732765197754, 1.0)
                 power = 5
             elif name == "Lamp.008":
-                power = 15
+                lampType = "sun"
+                power = 0.8
 
         yi.paramsClearAll()
 
-        yi.printInfo("Exporting Lamp: " + str(name) +  " [" + str(lampType) + "]")
+        yi.printInfo("Exporting Lamp: {0} [{1}]".format(name, lampType))
 
-        if lamp.create_geometry and not self.lightMat:
-            self.yi.paramsClearAll()
-            self.yi.paramsSetString("type", "light_mat")
-            self.lightMat = self.yi.createMaterial("lm")
+        if lamp.create_geometry:  # and not self.lightMat:
+            yi.paramsClearAll()
+            yi.paramsSetColor("color", color[0], color[1], color[2])  # color for spherelight and area light geometry
+            yi.paramsSetString("type", "light_mat")
+            self.lightMat = self.yi.createMaterial(name)
             self.yi.paramsClearAll()
 
         if lampType == "point":
             yi.paramsSetString("type", "pointlight")
-            power = 0.5 * power * power  # original value
-
-            if lamp.use_sphere:
-                radius = lamp.shadow_soft_size
-                power /= (radius * radius)  # radius < 1 crash geometry ?
-
+            if getattr(lamp, "use_sphere", False):
                 if lamp.create_geometry:
-                    ID = self.makeSphere(24, 48, pos[0], pos[1], pos[2], radius, self.lightMat)
+                    ID = self.makeSphere(24, 48, pos[0], pos[1], pos[2], lamp.yaf_sphere_radius, self.lightMat)
                     yi.paramsSetInt("object", ID)
-
                 yi.paramsSetString("type", "spherelight")
                 yi.paramsSetInt("samples", lamp.yaf_samples)
-                yi.paramsSetFloat("radius", radius)
+                yi.paramsSetFloat("radius", lamp.yaf_sphere_radius)
 
         elif lampType == "spot":
             if self.preview and name == "Lamp.002":
@@ -111,9 +125,7 @@ class yafLight:
             else:
                 # Blender reports the angle of the full cone in radians
                 # and we need half of the apperture angle in degrees
-                # (spot_size * 180 / pi) / 2
-                angle = (lamp.spot_size * 180 / math.pi) * 0.5
-                # angle = (lamp.spot_size * 57.29577951308232087684636) * 0.5
+                angle = degrees(lamp.spot_size) * 0.5
 
             yi.paramsSetString("type", "spotlight")
 
@@ -124,49 +136,49 @@ class yafLight:
             yi.paramsSetFloat("shadowFuzzyness", lamp.shadow_fuzzyness)
             yi.paramsSetBool("photon_only", lamp.photon_only)
             yi.paramsSetInt("samples", lamp.yaf_samples)
-            power = 0.5 * power * power
 
         elif lampType == "sun":
             yi.paramsSetString("type", "sunlight")
             yi.paramsSetInt("samples", lamp.yaf_samples)
             yi.paramsSetFloat("angle", lamp.angle)
             yi.paramsSetPoint("direction", dir[0], dir[1], dir[2])
-            if lamp.directional:
-                yi.paramsSetString("type", "directional")
-                yi.paramsSetBool("infinite", lamp.infinite)
+
+        elif lampType == "directional":
+            yi.paramsSetString("type", "directional")
+            yi.paramsSetPoint("direction", dir[0], dir[1], dir[2])
+            yi.paramsSetBool("infinite", lamp.infinite)
+            if not lamp.infinite:
                 yi.paramsSetFloat("radius", lamp.shadow_soft_size)
+                yi.paramsSetPoint("from", pos[0], pos[1], pos[2])
 
         elif lampType == "ies":
-            # use for IES light
             yi.paramsSetString("type", "ieslight")
             yi.paramsSetPoint("to", to[0], to[1], to[2])
             ies_file = abspath(lamp.ies_file)
-            if ies_file != "" and not os.path.exists(ies_file):
+            if not any(ies_file) and not os.path.exists(ies_file):
+                yi.printWarning("IES file not found for {0}".format(name))
                 return False
             yi.paramsSetString("file", ies_file)
             yi.paramsSetInt("samples", lamp.yaf_samples)
             yi.paramsSetBool("soft_shadows", lamp.ies_soft_shadows)
-            yi.paramsSetFloat("cone_angle", lamp.ies_cone_angle)
 
         elif lampType == "area":
-
             sizeX = 1.0
             sizeY = 1.0
-
-            matrix = lamp_object.matrix_world
+            matrix = lamp_object.matrix_world.copy()
 
             # generate an untransformed rectangle in the XY plane with
             # the light's position as the centerpoint and transform it
             # using its transformation matrix
 
-            point = mathutils.Vector((-sizeX / 2, -sizeY / 2, 0))
-            corner1 = mathutils.Vector((-sizeX / 2, sizeY / 2, 0))
-            corner2 = mathutils.Vector((sizeX / 2, sizeY / 2, 0))
-            corner3 = mathutils.Vector((sizeX / 2, -sizeY / 2, 0))
-            point = point * matrix
-            corner1 = corner1 * matrix
-            corner2 = corner2 * matrix
-            corner3 = corner3 * matrix
+            point = Vector((-sizeX / 2, -sizeY / 2, 0))
+            corner1 = Vector((-sizeX / 2, sizeY / 2, 0))
+            corner2 = Vector((sizeX / 2, sizeY / 2, 0))
+            corner3 = Vector((sizeX / 2, -sizeY / 2, 0))
+            point = matrix * point  # use reverse vector multiply order, API changed with rev. 38674
+            corner1 = matrix * corner1  # use reverse vector multiply order, API changed with rev. 38674
+            corner2 = matrix * corner2  # use reverse vector multiply order, API changed with rev. 38674
+            corner3 = matrix * corner3  # use reverse vector multiply order, API changed with rev. 38674
 
             yi.paramsClearAll()
             if lamp.create_geometry:
@@ -186,12 +198,19 @@ class yafLight:
 
             yi.paramsSetString("type", "arealight")
             yi.paramsSetInt("samples", lamp.yaf_samples)
-
             yi.paramsSetPoint("corner", point[0], point[1], point[2])
             yi.paramsSetPoint("point1", corner1[0], corner1[1], corner1[2])
             yi.paramsSetPoint("point2", corner3[0], corner3[1], corner3[2])
 
-        yi.paramsSetPoint("from", pos[0], pos[1], pos[2])
+        if lampType not in {"sun", "directional"}:
+            # "from" is not used for sunlight and infinite directional light
+            yi.paramsSetPoint("from", pos[0], pos[1], pos[2])
+        if lampType in {"point", "spot"}:
+            if getattr(lamp, "use_sphere", False) and lampType == "point":
+                power = 0.5 * power * power / (lamp.yaf_sphere_radius * lamp.yaf_sphere_radius)
+            else:
+                power = 0.5 * power * power
+
         yi.paramsSetColor("color", color[0], color[1], color[2])
         yi.paramsSetFloat("power", power)
         yi.createLight(name)

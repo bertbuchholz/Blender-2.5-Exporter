@@ -1,5 +1,24 @@
+# ##### BEGIN GPL LICENSE BLOCK #####
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU General Public License
+#  as published by the Free Software Foundation; either version 2
+#  of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software Foundation,
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# ##### END GPL LICENSE BLOCK #####
+
+# <pep8 compliant>
+
 import bpy
-import mathutils
 import yafrayinterface
 
 
@@ -59,23 +78,24 @@ class yafMaterial:
             'DARKEN': 7,
             'LIGHTEN': 8,
         }
-        
+
         mode = switchBlendMode.get(mtex.blend_type, 0)  # set texture blend mode, if not a supported mode then set it to 'MIX'
         yi.paramsSetInt("mode", mode)
-        yi.paramsSetBool("stencil", mtex.use_stencil)  
+        yi.paramsSetBool("stencil", mtex.use_stencil)
 
         negative = mtex.invert
         yi.paramsSetBool("negative", negative)
 
-        if factor < 0:  # check for negative values
+        if factor < 0:  # added a check for negative values
             factor = factor * -1
             yi.paramsSetBool("negative", True)
 
         # "hack", scalar maps should always convert the RGB intensity to scalar
-        # not clear why without this and noRGB == False, maps on scalar values seem to be "white" everywhere
+        # not clear why without this and noRGB == False, maps on scalar values seem to be "white" everywhere   <-- ???
         noRGB = mtex.use_rgb_to_intensity
-        if len(dcol) == 1 and not name[:12] == 'transp_layer':  # hack for transparency intensity maps with 'use alpha'
-            noRGB = True
+
+        # if len(dcol) == 1:    # disabled this 'hack' again, does not work with procedurals and alpha mapping (e.g. PNG image with 'use alpha')
+        #     noRGB = True      # user should decide if rgb_to_intensity will be used or not...
 
         yi.paramsSetBool("noRGB", noRGB)
 
@@ -85,9 +105,9 @@ class yafMaterial:
         tex = mtex.texture  # texture object instance
         # lots to do...
 
-        isImage = (tex.type == 'IMAGE')
+        isImage = tex.yaf_tex_type == 'IMAGE'
 
-        if (isImage or (tex.type == 'VORONOI' and tex.color_mode != 'INTENSITY')):
+        if (isImage or (tex.yaf_tex_type == 'VORONOI' and tex.color_mode not in 'INTENSITY')):
             isColored = True
         else:
             isColored = False
@@ -129,7 +149,7 @@ class yafMaterial:
         yi.paramsSetString("element", "shader_node")
         yi.paramsSetString("type", "texture_mapper")
         yi.paramsSetString("name", name)
-        yi.paramsSetString("texture", mtex.texture.name)
+        yi.paramsSetString("texture", texname)
 
         switchTexCoords = {
             'UV': 'uv',
@@ -148,32 +168,36 @@ class yafMaterial:
         yi.paramsSetString("texco", texco)
 
         if mtex.object:
-            texmat = mtex.object.matrix_local.inverted()
+            texmat = mtex.object.matrix_world.inverted()
             rtmatrix = yafrayinterface.new_floatArray(4 * 4)
 
             for x in range(4):
                 for y in range(4):
                     idx = (y + x * 4)
                     yafrayinterface.floatArray_setitem(rtmatrix, idx, texmat[x][y])
-
-            yi.paramsSetMemMatrix("transform", rtmatrix, True)
+            yi.paramsSetMemMatrix("transform", rtmatrix, False)
             yafrayinterface.delete_floatArray(rtmatrix)
 
         yi.paramsSetInt("proj_x", proj2int(mtex.mapping_x))
         yi.paramsSetInt("proj_y", proj2int(mtex.mapping_y))
         yi.paramsSetInt("proj_z", proj2int(mtex.mapping_z))
 
-        if   mtex.mapping == 'FLAT':
-            yi.paramsSetString("mapping", "plain")
-        elif mtex.mapping == 'CUBE':
-            yi.paramsSetString("mapping", "cube")
-        elif mtex.mapping == 'TUBE':
-            yi.paramsSetString("mapping", "tube")
-        elif mtex.mapping == 'SPHERE':
-            yi.paramsSetString("mapping", "sphere")
+        switchMappingCoords = {
+            'FLAT': 'plain',
+            'CUBE': 'cube',
+            'TUBE': 'tube',
+            'SPHERE': 'sphere',
+        }
+        mappingCoords = switchMappingCoords.get(mtex.mapping, 'plain')
+        yi.paramsSetString("mapping", mappingCoords)
 
         yi.paramsSetPoint("offset", mtex.offset[0], mtex.offset[1], mtex.offset[2])
-        yi.paramsSetPoint("scale", mtex.scale[0], mtex.scale[1], mtex.scale[2])
+        if bpy.types.YAFA_RENDER.is_texPrev:  # check if it is a texture preview render
+            mtex_X = mtex.scale[0] * 8.998  # tex preview fix: scale X value of tex size for the stretched Plane Mesh in preview scene
+            mtex_Z = mtex.scale[2] * 0.00001  # and for Z value of texture size also...
+            yi.paramsSetPoint("scale", mtex_X, mtex.scale[1], mtex_Z)
+        else:
+            yi.paramsSetPoint("scale", mtex.scale[0], mtex.scale[1], mtex.scale[2])
 
         if mtex.use_map_normal:  # || mtex->maptoneg & MAP_NORM )
             # scale up the normal factor, it resembles
@@ -209,7 +233,7 @@ class yafMaterial:
         yi.paramsSetBool("fake_shadows", mat.fake_shadows)
 
         mcolRoot = ''
-        fcolRoot = ''
+        # fcolRoot = '' /* UNUSED */
         bumpRoot = ''
 
         i = 0
@@ -265,7 +289,7 @@ class yafMaterial:
         yi.paramsSetFloat("exp_v", mat.exp_v)
 
         diffRoot = ''
-        mcolRoot = ''
+        # mcolRoot = ''  /* UNUSED */
         glossRoot = ''
         glRefRoot = ''
         bumpRoot = ''
@@ -328,7 +352,7 @@ class yafMaterial:
         bEmit = mat.emit
 
         if self.preview:
-            if mat.name.find("check") != -1:
+            if mat.name.startswith("checker"):
                 bEmit = 0.35
 
         i = 0
@@ -435,7 +459,7 @@ class yafMaterial:
             mappername = "map%x" % i
 
             lname = "diff_layer%x" % i
-            if self.writeTexLayer(lname, mappername, diffRoot, mtex, mtex.diffuse_factor, [0], mtex.use_map_diffuse):
+            if self.writeTexLayer(lname, mappername, diffRoot, mtex, mtex.use_map_diffuse, [0], mtex.diffuse_factor):
                 used = True
                 diffRoot = lname
             if used:
@@ -465,7 +489,7 @@ class yafMaterial:
         yi.paramsSetString("type", "null")
         return yi.createMaterial(self.namehash(mat))
 
-    def writeMaterial(self, mat, preview = False):
+    def writeMaterial(self, mat, preview=False):
         self.preview = preview
         self.yi.printInfo("Exporter: Creating Material: \"" + self.namehash(mat) + "\"")
         ymat = None

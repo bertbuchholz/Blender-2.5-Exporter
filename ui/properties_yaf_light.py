@@ -1,138 +1,142 @@
-import bpy
-#import types and props ---->
-from bpy.props import *
-Lamp = bpy.types.Lamp
+# ##### BEGIN GPL LICENSE BLOCK #####
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU General Public License
+#  as published by the Free Software Foundation; either version 2
+#  of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software Foundation,
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# ##### END GPL LICENSE BLOCK #####
 
-def call_lighttype_update(self, context):
-        lamp = context.scene.objects.active
-        if lamp.type == 'LAMP':
-            switchLampType = {'area': 'AREA', 'spot': 'SPOT', 'sun': 'SUN', 'point': 'POINT', 'ies': 'SPOT'}
-            lamp.data.type = switchLampType.get(lamp.data.lamp_type)
+# <pep8 compliant>
 
-Lamp.lamp_type = EnumProperty(
-    items = (
-        ("point", "Point", ""),
-        ("sun", "Sun", ""),
-        ("spot", "Spot", ""),
-        ("ies", "IES", ""),
-        ("area", "Area", "")),
-    default="point",
-    name = "Light Type", update = call_lighttype_update)
+from bpy.types import Panel
+from bl_ui.properties_data_lamp import DataButtonsPanel
 
-Lamp.directional =      BoolProperty(attr = "directional",
-                                    description = "",
-                                    default = False)
-Lamp.size =             FloatProperty(attr = "size",  # size = size value in Blender
-                                    description = "",
-                                    default = 2)
-Lamp.size_y =           FloatProperty(attr = "size_y",
-                                    description = "",
-                                    default = 2)
-Lamp.spot_blend =       FloatProperty(attr = "spot_blend",
-                                    description = "")
-Lamp.spot_size =        FloatProperty(attr = "spot_size",
-                                    description = "",
-                                    default = 45)
-Lamp.use_sphere =       BoolProperty(attr = "use_sphere",
-                                    description = "",
-                                    default = False)
-Lamp.create_geometry =  BoolProperty(attr = "create_geometry",
-                                    description = "Creates a visible geometry in the dimensions of the light during the render",
-                                    default = False)
-Lamp.infinite =         BoolProperty(attr = "infinite",
-                                    description = "Determines if light is infinite or filling a semi-infinite cylinder",
-                                    default = True)
-Lamp.spot_soft_shadows = BoolProperty(attr = "spot_soft_shadows",
-                                    description = "Use soft shadows",
-                                    default = False)
-Lamp.shadow_fuzzyness = FloatProperty(attr = "shadow_fuzzyness",
-                                    description = "Fuzzyness of the soft shadows (0 - hard shadow, 1 - fuzzy shadow)",
-                                    min = 0.0, max = 1.0,
-                                    default = 1.0)
-Lamp.photon_only =      BoolProperty(attr = "photon_only",
-                                    description = "This spot will only throw photons not direct light",
-                                    default = False)
-Lamp.angle =            FloatProperty(attr = "angle",
-                                    description = "Angle of the cone in degrees (shadow softness)",
-                                    min = 0.0, max = 80.0,
-                                    default = 0.5)
-Lamp.ies_file =         StringProperty(attr = "ies_file", subtype = 'FILE_PATH')
-Lamp.yaf_samples =      IntProperty(attr = "yaf_samples",
-                                    description = "Number of samples to be taken for direct lighting",
-                                    min = 0, max = 512,
-                                    default = 16)
-Lamp.ies_cone_angle =   FloatProperty(attr = "spot_size", default = 45)
-Lamp.ies_soft_shadows = BoolProperty(attr = "ies_soft_shadows")
+# Inherit Lamp data block
+from bl_ui.properties_data_lamp import DATA_PT_context_lamp
+DATA_PT_context_lamp.COMPAT_ENGINES.add('YAFA_RENDER')
+del DATA_PT_context_lamp
 
 
-class YAF_PT_lamp(bpy.types.Panel):
-
-    bl_label = 'Lamp'
+class YAF_PT_preview(Panel):
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
-    bl_context = 'data'
-
-    COMPAT_ENGINES = ['YAFA_RENDER']
+    bl_context = "data"
+    bl_label = "Preview"
+    COMPAT_ENGINES = {'YAFA_RENDER'}
 
     @classmethod
-    def poll(self, context):
-
+    def poll(cls, context):
         engine = context.scene.render.engine
-        return (context.lamp and  (engine in self.COMPAT_ENGINES))
+        return context.lamp and (engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        self.layout.template_preview(context.lamp)
+
+
+class YAF_PT_lamp(DataButtonsPanel, Panel):
+    bl_label = "Lamp"
+    COMPAT_ENGINES = {'YAFA_RENDER'}
 
     def draw(self, context):
         layout = self.layout
 
-        ob = context.object
         lamp = context.lamp
-        space = context.space_data
 
-        layout.template_preview(context.lamp)
-        layout.prop(lamp, "lamp_type", expand = True, text = "Light Type")
+        layout.prop(lamp, "lamp_type", expand=True)
 
-        row = layout.row()
-        col = row.column()
+        if lamp.lamp_type == "area":
+            layout.prop(lamp, "color")
+            layout.prop(lamp, "yaf_energy", text="Power")
+            layout.prop(lamp, "yaf_samples")
+            layout.prop(lamp, "create_geometry")
 
-        if lamp.lamp_type == 'area':
-            col.prop(lamp, "yaf_samples", text = "Samples")
-            col.prop(lamp, "create_geometry", text= "Create Geometry")
-
-        elif lamp.lamp_type == 'spot':
-            col.prop(lamp, "spot_size", text = "Cone Angle")
-            col.prop(lamp, "spot_blend", text = "Cone Edge Softness")
-            col.prop(lamp, "spot_soft_shadows", text= "Soft Shadow", toggle = True)
+        elif lamp.lamp_type == "spot":
+            layout.prop(lamp, "color")
+            layout.prop(lamp, "yaf_energy", text="Power")
+            layout.prop(lamp, "spot_soft_shadows", toggle=True)
 
             if lamp.spot_soft_shadows:
-                box = col.box()
-                box.prop(lamp, "yaf_samples", text = "Samples")
-                box.prop(lamp, "shadow_fuzzyness", text= "Shadow Fuzzyness")
+                box = layout.box()
+                box.prop(lamp, "yaf_samples")
+                box.prop(lamp, "shadow_fuzzyness")
 
-            col.prop(lamp, "photon_only", text= "Photon Only")
+            layout.prop(lamp, "photon_only")
 
-        elif lamp.lamp_type == 'sun':
-            col.prop(lamp, "angle", text = "Angle")
-            col.prop(lamp, "yaf_samples", text= "Samples")
-            col.prop(lamp, "directional", text= "Directional", toggle = True)
-            if lamp.directional:
-                box = col.box()
-                box.prop(lamp, "shadow_soft_size", text = "Radius")
-                box.prop(lamp, "infinite", text= "Infinite")
+        elif lamp.lamp_type == "sun":
+            layout.prop(lamp, "color")
+            layout.prop(lamp, "yaf_energy", text="Power")
+            layout.prop(lamp, "yaf_samples")
+            layout.prop(lamp, "angle")
 
-        elif lamp.lamp_type == 'point':
-            col.prop(lamp, "use_sphere", text = "Use sphere", toggle = True)
-            if lamp.use_sphere:
-                box = col.box()
-                box.prop(lamp, "shadow_soft_size", text= "Radius")
-                box.prop(lamp, "yaf_samples", text = "Samples")
-                box.prop(lamp, "create_geometry", text = "Create Geometry")
+        elif lamp.lamp_type == "directional":
+            layout.prop(lamp, "color")
+            layout.prop(lamp, "yaf_energy", text="Power")
+            layout.prop(lamp, "infinite")
+            if not lamp.infinite:
+                layout.prop(lamp, "shadow_soft_size", text="Radius of directional cone")
 
-        elif lamp.lamp_type == 'ies':
-            col.label("YafaRay Light type IES")
-            col.prop(lamp, "ies_file", text = "IES File")
-            col.prop(lamp, "ies_soft_shadows", text = "IES Soft Shadows", toggle = True)
+        elif lamp.lamp_type == "point":
+            layout.prop(lamp, "color")
+            layout.prop(lamp, "yaf_energy", text="Power")
+            if hasattr(lamp, "use_sphere"):
+                layout.prop(lamp, "use_sphere", toggle=True)
+                if lamp.use_sphere:
+                    box = layout.box()
+                    box.prop(lamp, "yaf_sphere_radius")
+                    box.prop(lamp, "yaf_samples")
+                    box.prop(lamp, "create_geometry")
+
+        elif lamp.lamp_type == "ies":
+            layout.prop(lamp, "color")
+            layout.prop(lamp, "yaf_energy", text="Power")
+            layout.prop(lamp, "ies_file")
+            layout.prop(lamp, "ies_soft_shadows", toggle=True)
             if lamp.ies_soft_shadows:
-                box = col.box()
-                box.prop(lamp, "yaf_samples", text = "IES Samples")
+                layout.box().prop(lamp, "yaf_samples")
 
-        col.prop(lamp, "color", text= "Color")
-        col.prop(lamp, "energy", text= "Power")
+
+class YAF_PT_spot(DataButtonsPanel, Panel):
+    bl_label = "Spot Shape"
+    COMPAT_ENGINES = {'YAFA_RENDER'}
+
+    @classmethod
+    def poll(cls, context):
+        lamp = context.lamp
+        engine = context.scene.render.engine
+        return (lamp and lamp.lamp_type == "spot") and (engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+        lamp = context.lamp
+
+        split = layout.split()
+
+        col = split.column()
+        col.prop(lamp, "spot_size", text="Size")
+        col.prop(lamp, "yaf_show_dist_clip")
+        if lamp.yaf_show_dist_clip:
+            col.prop(lamp, "distance")
+            col.prop(lamp, "shadow_buffer_clip_start", text="Clip Start")
+
+        col = split.column()
+
+        col.prop(lamp, "spot_blend", text="Blend", slider=True)
+        col.prop(lamp, "show_cone")
+        if lamp.yaf_show_dist_clip:
+            col.label(text="")
+            col.prop(lamp, "shadow_buffer_clip_end", text=" Clip End")
+
+
+if __name__ == "__main__":  # only for live edit.
+    import bpy
+    bpy.utils.register_module(__name__)

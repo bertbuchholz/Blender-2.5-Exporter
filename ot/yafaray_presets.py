@@ -1,11 +1,32 @@
+# ##### BEGIN GPL LICENSE BLOCK #####
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU General Public License
+#  as published by the Free Software Foundation; either version 2
+#  of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software Foundation,
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# ##### END GPL LICENSE BLOCK #####
+
+# <pep8 compliant>
+
 import bpy
+from bpy.types import Operator
 import os
 import sys
 from bpy.path import clean_name, display_name
 from bpy_types import StructRNA, _GenericUI, RNAMeta
 
 
-def yaf_preset_find(name, preset_path, disp_name = False):
+def yaf_preset_find(name, preset_path, disp_name=False):
     if not name:
         return None
 
@@ -86,7 +107,7 @@ class YAF_AddPresetBase():
             filepath = yaf_preset_find(preset_active, target_path)
 
             if not filepath:
-                filepath = yaf_preset_find(preset_active, target_path, disp_name = True)
+                filepath = yaf_preset_find(preset_active, target_path, disp_name=True)
 
             if not filepath:
                 return {'CANCELLED'}
@@ -118,7 +139,7 @@ class YAF_AddPresetBase():
             return self.execute(context)
 
 
-class YAFARAY_OT_presets_renderset(YAF_AddPresetBase, bpy.types.Operator):
+class YAFARAY_OT_presets_renderset(YAF_AddPresetBase, Operator):
     '''Add a Yafaray Render Preset'''
     bl_idname = "yafaray.preset_add"
     bl_label = "Yafaray Render Presets"
@@ -139,8 +160,6 @@ class YAFARAY_OT_presets_renderset(YAF_AddPresetBase, bpy.types.Operator):
         "scene.gs_clay_render",
         "scene.gs_draw_params",
         "scene.gs_custom_string",
-        "scene.gs_auto_save",
-        "scene.gs_auto_alpha",
         "scene.gs_premult",
         "scene.gs_transp_shad",
         "scene.gs_clamp_rgb",
@@ -165,7 +184,6 @@ class YAFARAY_OT_presets_renderset(YAF_AddPresetBase, bpy.types.Operator):
         "scene.intg_fg_bounces",
         "scene.intg_fg_samples",
         "scene.intg_show_map",
-        "scene.intg_use_bg",
         "scene.intg_caustic_method",
         "scene.intg_path_samples",
         "scene.intg_no_recursion",
